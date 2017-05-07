@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V3.1
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -7,16 +14,19 @@ using System.Reflection;
 
 namespace CRL.Package.DicConfig
 {
-    /// <summary>
-    /// 字典设置维护
-    /// 通过TYPE区分不同的用途
-    /// </summary>
-    public class DicConfigBusiness<TType> : BaseProvider<DicConfig> where TType : class
+    public class DicConfigBusiness<TType> : DicConfigBusiness
     {
         public static DicConfigBusiness<TType> Instance
         {
             get { return new DicConfigBusiness<TType>(); }
         }
+    }
+    /// <summary>
+    /// 字典设置维护
+    /// 通过TYPE区分不同的用途
+    /// </summary>
+    public class DicConfigBusiness : BaseProvider<DicConfig>
+    {
 
         /// <summary>
         /// 添加一项
@@ -29,9 +39,9 @@ namespace CRL.Package.DicConfig
             {
                 return 0;
             }
-            int id = base.Add(dic);
+            base.Add(dic);
             //ClearCache();
-            return id;
+            return dic.Id;
         }
         /// <summary>
         /// 取名称

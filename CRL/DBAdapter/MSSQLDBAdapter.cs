@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -53,13 +60,13 @@ end", spName, script);
             dic.Add(typeof(System.Int32), "int");
             dic.Add(typeof(System.Int16), "SMALLINT");
             dic.Add(typeof(System.Enum), "int");
-            dic.Add(typeof(System.Byte), "SMALLINT");
+            dic.Add(typeof(System.Byte), "[tinyint]");
             dic.Add(typeof(System.DateTime), "datetime");
             dic.Add(typeof(System.UInt16), "SMALLINT");
             dic.Add(typeof(System.Int64), "bigint");
             dic.Add(typeof(System.Object), "nvarchar(30)");
             dic.Add(typeof(System.Byte[]), "varbinary({0})");
-            dic.Add(typeof(System.Guid), "nvarchar(50)");
+            dic.Add(typeof(System.Guid), "uniqueidentifier");
             return dic;
         }
         /// <summary>
@@ -124,7 +131,7 @@ end", spName, script);
         /// <returns></returns>
         public override string GetCreateColumnScript(Attribute.FieldAttribute field)
         {
-            string str = string.Format("alter table [{0}] add {1} {2}", field.TableName, field.KeyWordName, field.ColumnType);
+            string str = string.Format("alter table [{0}] add {1} {2}", field.TableName, field.MapingName, field.ColumnType);
             if (!string.IsNullOrEmpty(field.DefaultValue))
             {
                 str += string.Format(" default({0})", field.DefaultValue);
@@ -143,7 +150,7 @@ end", spName, script);
         /// <returns></returns>
         public override string GetColumnIndexScript(Attribute.FieldAttribute filed)
         {
-            string indexScript = string.Format("CREATE {2} NONCLUSTERED INDEX  IX_INDEX_{0}_{1}  ON dbo.[{0}]([{1}])", filed.TableName, filed.Name, filed.FieldIndexType == Attribute.FieldIndexType.非聚集唯一 ? "UNIQUE" : "");
+            string indexScript = string.Format("CREATE {2} NONCLUSTERED INDEX  IX_INDEX_{0}_{1}  ON dbo.[{0}]([{1}])", filed.TableName, filed.MapingName, filed.FieldIndexType == Attribute.FieldIndexType.非聚集唯一 ? "UNIQUE" : "");
             return indexScript;
         }
 
@@ -163,15 +170,15 @@ end", spName, script);
             {
                 if (item.IsPrimaryKey)
                 {
-                    primaryKey = item.Name;
+                    primaryKey = item.MapingName;
                 }
                 string nullStr = item.NotNull ? "NOT NULL" : "";
-                string str = string.Format("[{0}] {1} {2} ", item.Name, item.ColumnType, nullStr);
+                string str = string.Format("[{0}] {1} {2} ", item.MapingName, item.ColumnType, nullStr);
                 list2.Add(str);
                 //生成默认值语句
                 if (!string.IsNullOrEmpty(item.DefaultValue))
                 {
-                    string v = string.Format("ALTER TABLE [dbo].[{0}] ADD  CONSTRAINT [DF_{0}_{1}]  DEFAULT ({2}) FOR [{1}]", tableName, item.Name, item.DefaultValue);
+                    string v = string.Format("ALTER TABLE [dbo].[{0}] ADD  CONSTRAINT [DF_{0}_{1}]  DEFAULT ({2}) FOR [{1}]", tableName, item.MapingName, item.DefaultValue);
                     defaultValues.Add(v);
                 }
             }
@@ -216,6 +223,7 @@ end", spName, script);
                 return;
             var type = details[0].GetType();
             string table = TypeCache.GetTableName(type, dbContext);
+            table = KeyWordFormat(table);
             string sql = GetSelectTop("*", " from " + table + " where 1=0","", 1);
             DataTable tempTable = helper.ExecDataTable(sql);
             var typeArry = TypeCache.GetProperties(type, true).Values;
@@ -224,17 +232,21 @@ end", spName, script);
                 DataRow dr = tempTable.NewRow();
                 foreach (Attribute.FieldAttribute info in typeArry)
                 {
-                    string name = info.Name;
+                    if (info.FieldType != Attribute.FieldType.数据库字段)
+                    {
+                        continue;
+                    }
+                    string name = info.MapingName;
                     object value = info.GetValue(item);
                     if (!keepIdentity)
                     {
                         if (info.IsPrimaryKey)
                             continue;
                     }
-                    if (!string.IsNullOrEmpty(info.VirtualField))
-                    {
-                        continue;
-                    }
+                    //if (!string.IsNullOrEmpty(info.VirtualField))
+                    //{
+                    //    continue;
+                    //}
                     var value2 = ObjectConvert.CheckNullValue(value,info.PropertyType);
                     if (info.PropertyType.FullName.StartsWith("System.Nullable"))//Nullable<T>类型为空值不插入
                     {
@@ -266,7 +278,11 @@ end", spName, script);
             string sql2 = "";
             foreach (Attribute.FieldAttribute info in typeArry)
             {
-                string name = info.Name;
+                if (info.FieldType != Attribute.FieldType.数据库字段)
+                {
+                    continue;
+                }
+                string name = info.MapingName;
                 if (info.IsPrimaryKey)
                 {
                     primaryKey = info;
@@ -275,10 +291,10 @@ end", spName, script);
                 {
                     continue;
                 }
-                if (!string.IsNullOrEmpty(info.VirtualField))
-                {
-                    continue;
-                }
+                //if (!string.IsNullOrEmpty(info.VirtualField))
+                //{
+                //    continue;
+                //}
                 object value = info.GetValue(obj);
                 if (info.PropertyType.FullName.StartsWith("System.Nullable"))//Nullable<T>类型为空值不插入
                 {
@@ -288,7 +304,7 @@ end", spName, script);
                     }
                 }
                 value = ObjectConvert.CheckNullValue(value, info.PropertyType);
-                sql1 += string.Format("{0},", info.KeyWordName);
+                sql1 += string.Format("{0},", info.MapingName);
                 sql2 += string.Format("@{0},", name);
                 helper.AddParam(name, value);
             }
@@ -311,15 +327,20 @@ end", spName, script);
         /// 获取 with(nolock)
         /// </summary>
         /// <returns></returns>
-        public override string GetWithNolockFormat()
+        public override string GetWithNolockFormat(bool v)
         {
-            return " with(nolock)";
+            if (!v)
+            {
+                return "";
+            }
+            return " with (nolock)";
         }
         /// <summary>
         /// 获取前几条语句
         /// </summary>
         /// <param name="fields">id,name</param>
         /// <param name="query">from table where 1=1</param>
+        /// <param name="sort"></param>
         /// <param name="top"></param>
         /// <returns></returns>
         public override string GetSelectTop(string fields, string query,string sort, int top)
@@ -385,8 +406,8 @@ begin
     set @pageCount=(@count+@pageSize-1)/@pageSize
 
     /**当前页大于总页数 取最后一页**/
-    if @pageIndex>@pageCount
-        set @pageIndex=@pageCount
+    --if @pageIndex>@pageCount
+        --set @pageIndex=@pageCount
 
 	--计算开始结束的行号
 	set @start = @pageSize*(@pageIndex-1)+1
@@ -424,8 +445,8 @@ begin
     set @pageCount=(@count+@pageSize-1)/@pageSize
 
     /**当前页大于总页数 取最后一页**/
-    if @pageIndex>@pageCount
-        set @pageIndex=@pageCount
+    --if @pageIndex>@pageCount
+        --set @pageIndex=@pageCount
 
 	--计算开始结束的行号
 	set @start = @pageSize*(@pageIndex-1)+1
@@ -501,6 +522,17 @@ set  nocount  on
             return string.Format("{0} NOT IN ({1})", field, parName);
         }
         #endregion
+        public override string CastField(string field, Type fieldType)
+        {
+            var dic = FieldMaping();
+            if (!dic.ContainsKey(fieldType))
+            {
+                throw new CRLException(string.Format("没找到对应类型的转换{0} 在字段{1}", fieldType, field));
+            }
+            var type = dic[fieldType];
+            type = string.Format(type, 100);
+            return string.Format("CAST({0} as {1})", field, type);
+        }
     }
 
     internal class MSSQL2000DBAdapter : MSSQLDBAdapter
@@ -527,12 +559,12 @@ set  nocount  on
             foreach (Attribute.FieldAttribute item in fields)
             {
                 string nullStr = item.NotNull ? "NOT NULL" : "";
-                string str = string.Format("[{0}] {1} {2} ", item.Name, item.ColumnType, nullStr);
+                string str = string.Format("[{0}] {1} {2} ", item.MapingName, item.ColumnType, nullStr);
                 list2.Add(str);
                 //生成默认值语句
                 if (!string.IsNullOrEmpty(item.DefaultValue))
                 {
-                    string v = string.Format("ALTER TABLE [dbo].[{0}] ADD  CONSTRAINT [DF_{0}_{1}]  DEFAULT ({2}) FOR [{1}]", tableName, item.Name, item.DefaultValue);
+                    string v = string.Format("ALTER TABLE [dbo].[{0}] ADD  CONSTRAINT [DF_{0}_{1}]  DEFAULT ({2}) FOR [{1}]", tableName, item.MapingName, item.DefaultValue);
                     defaultValues.Add(v);
                 }
             }

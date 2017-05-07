@@ -1,11 +1,18 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V3.1
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
 namespace CRL.Package.RoleAuthorize
 {
-    public class MenuBusiness : Category.CategoryBusiness<MenuBusiness, Menu>
+    public class MenuBusiness : Category.CategoryBusiness<Menu>
     {
         public static MenuBusiness Instance
         {
@@ -24,13 +31,17 @@ namespace CRL.Package.RoleAuthorize
                 return "";
             return item.SequenceCode;
         }
-        public Menu GetMenuByUrl(int systemTypeId)
+        public Menu GetMenuByUrl(int systemTypeId, string url = "")
         {
-            string url = System.Web.HttpContext.Current.Request.Path.ToLower();
+            if (string.IsNullOrEmpty(url))
+            {
+                url = System.Web.HttpContext.Current.Request.Path;
+            }
+            url = url.ToLower();
             var allCache = GetAllCache(systemTypeId);
             var items = allCache.Where(b => b.DataType == systemTypeId
                 && !string.IsNullOrEmpty(b.Url)
-                && url==b.Url.ToLower()
+                && url == b.Url.ToLower()
                 && b.ParentCode != "");
             return items.FirstOrDefault();
         }
@@ -192,7 +203,7 @@ namespace CRL.Package.RoleAuthorize
         public void SaveFavMenus(Dictionary<string, int> dic, int systemTypeId, int userId)
         {
             string name = string.Format("{0}_{1}.txt", systemTypeId, userId);
-            string folder = System.Web.HttpContext.Current.Server.MapPath("/log/userMenuCache/");
+            string folder = System.Web.HttpContext.Current.Server.MapPath("/config/userMenuCache/");
             CoreHelper.EventLog.CreateFolder(folder);
             string fileName = folder + name;
             string str = "";
@@ -205,7 +216,7 @@ namespace CRL.Package.RoleAuthorize
         public Dictionary<string, int> GetFavMenuDic(int systemTypeId, int userId)
         {
             string name = string.Format("{0}_{1}.txt", systemTypeId, userId);
-            string folder = System.Web.HttpContext.Current.Server.MapPath("/log/userMenuCache/");
+            string folder = System.Web.HttpContext.Current.Server.MapPath("/config/userMenuCache/");
             string fileName = folder + name;
             string menus = "";
             if (System.IO.File.Exists(fileName))

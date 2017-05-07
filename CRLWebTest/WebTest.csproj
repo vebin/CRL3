@@ -24,6 +24,7 @@
     <IISExpressWindowsAuthentication />
     <IISExpressUseClassicPipelineMode />
     <TargetFrameworkProfile />
+    <UseGlobalApplicationHostFile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -48,14 +49,43 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Chloe">
+      <HintPath>..\packages\ORMS\Chloe.dll</HintPath>
+    </Reference>
+    <Reference Include="Chloe.SqlServer">
+      <HintPath>..\packages\ORMS\Chloe.SqlServer.dll</HintPath>
+    </Reference>
     <Reference Include="CoreHelper, Version=3.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\ref\CoreHelper.dll</HintPath>
+      <HintPath>..\packages\CoreHelper.dll</HintPath>
+    </Reference>
+    <Reference Include="EntityFramework">
+      <HintPath>..\packages\ORMS\EntityFramework.dll</HintPath>
+    </Reference>
+    <Reference Include="EntityFramework.SqlServer">
+      <HintPath>..\packages\ORMS\EntityFramework.SqlServer.dll</HintPath>
+    </Reference>
+    <Reference Include="Farseer.Net">
+      <HintPath>..\packages\ORMS\Farseer.Net.dll</HintPath>
+    </Reference>
+    <Reference Include="Farseer.Net.Sql">
+      <HintPath>..\packages\ORMS\Farseer.Net.Sql.dll</HintPath>
+    </Reference>
+    <Reference Include="Loogn.OrmLite">
+      <HintPath>..\packages\ORMS\Loogn.OrmLite.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.CSharp" />
-    <Reference Include="Newtonsoft.Json, Version=4.5.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\ref\Newtonsoft.Json.dll</HintPath>
+    <Reference Include="MongoDB.Bson">
+      <HintPath>..\packages\MongoDB.Bson.2.2.4\lib\net45\MongoDB.Bson.dll</HintPath>
+    </Reference>
+    <Reference Include="MongoDB.Driver">
+      <HintPath>..\packages\MongoDB.Driver.2.2.4\lib\net45\MongoDB.Driver.dll</HintPath>
+    </Reference>
+    <Reference Include="MongoDB.Driver.Core">
+      <HintPath>..\packages\MongoDB.Driver.Core.2.2.4\lib\net45\MongoDB.Driver.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="SqlSugar">
+      <HintPath>..\packages\ORMS\SqlSugar.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.DataAnnotations" />
@@ -85,6 +115,7 @@
     <Content Include="Page\Cache.aspx" />
     <Content Include="Page\Cache2.aspx" />
     <Content Include="Page\CacheManage.aspx" />
+    <Content Include="Page\CallContext.aspx" />
     <Content Include="Page\DataVerification.aspx" />
     <Content Include="Default.aspx" />
     <Content Include="Page\Delete.aspx" />
@@ -94,6 +125,7 @@
     <Content Include="Page\ExtensionMethod.aspx" />
     <Content Include="Page\Insert.aspx" />
     <Content Include="Page\Model.aspx" />
+    <Content Include="Page\MongoDB.aspx" />
     <Content Include="Page\OrderTest.aspx" />
     <Content Include="Page\Pager.aspx" />
     <Content Include="Page\Query1.aspx" />
@@ -102,6 +134,7 @@
     <Content Include="Page\Sharding.aspx" />
     <Content Include="Page\TableExistsCache.aspx" />
     <Content Include="Page\TestAll.aspx" />
+    <Content Include="Page\QueryView.aspx" />
     <Content Include="pay.aspx" />
     <Content Include="Resources\sp_ExecuteScript_ORACLE.sql" />
     <Content Include="Resources\sp_page_MSSql.sql" />
@@ -118,7 +151,9 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Code\CacheDataTest.cs" />
     <Compile Include="Code\ClassGuid.cs" />
+    <Compile Include="Code\Dapper.cs" />
     <Compile Include="Code\Member.cs" />
     <Compile Include="Code\MemberManage.cs" />
     <Compile Include="Code\ModelTest.cs" />
@@ -133,6 +168,7 @@
     <Compile Include="CRLExpressionTest.aspx.designer.cs">
       <DependentUpon>CRLExpressionTest.aspx</DependentUpon>
     </Compile>
+    <Compile Include="MongoDBTest.cs" />
     <Compile Include="Page\About.aspx.cs">
       <DependentUpon>About.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -177,6 +213,13 @@
     </Compile>
     <Compile Include="Page\CacheServer.ashx.cs">
       <DependentUpon>CacheServer.ashx</DependentUpon>
+    </Compile>
+    <Compile Include="Page\CallContext.aspx.cs">
+      <DependentUpon>CallContext.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Page\CallContext.aspx.designer.cs">
+      <DependentUpon>CallContext.aspx</DependentUpon>
     </Compile>
     <Compile Include="Page\DataVerification.aspx.cs">
       <DependentUpon>DataVerification.aspx</DependentUpon>
@@ -237,6 +280,13 @@
     <Compile Include="Page\Model.aspx.designer.cs">
       <DependentUpon>Model.aspx</DependentUpon>
     </Compile>
+    <Compile Include="Page\MongoDB.aspx.cs">
+      <DependentUpon>MongoDB.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Page\MongoDB.aspx.designer.cs">
+      <DependentUpon>MongoDB.aspx</DependentUpon>
+    </Compile>
     <Compile Include="Page\OrderTest.aspx.cs">
       <DependentUpon>OrderTest.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -278,6 +328,13 @@
     </Compile>
     <Compile Include="Page\TestAll.aspx.designer.cs">
       <DependentUpon>TestAll.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Page\QueryView.aspx.cs">
+      <DependentUpon>QueryView.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Page\QueryView.aspx.designer.cs">
+      <DependentUpon>QueryView.aspx</DependentUpon>
     </Compile>
     <Compile Include="pay.aspx.cs">
       <DependentUpon>pay.aspx</DependentUpon>
@@ -385,6 +442,11 @@
       <Name>CRL</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="DBConnection\mongodb.config">
+      <SubType>Designer</SubType>
+    </Content>
+  </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
@@ -408,6 +470,8 @@
           <DevelopmentServerPort>56640</DevelopmentServerPort>
           <DevelopmentServerVPath>/</DevelopmentServerVPath>
           <IISUrl>http://localhost:56641/</IISUrl>
+          <OverrideIISAppRootUrl>True</OverrideIISAppRootUrl>
+          <IISAppRootUrl>http://localhost:56641/</IISAppRootUrl>
           <NTLMAuthentication>False</NTLMAuthentication>
           <UseCustomServer>False</UseCustomServer>
           <CustomServerUrl>
@@ -418,7 +482,7 @@
     </VisualStudio>
   </ProjectExtensions>
   <PropertyGroup>
-    <PostBuildEvent>copy $(TargetDir)\CRL.DLL $(ProjectDir)\ref
-copy $(TargetDir)\CRL.XML $(ProjectDir)\ref</PostBuildEvent>
+    <PostBuildEvent>copy $(SolutionDir)\CRL\update.txt $(ProjectDir)\update.txt
+</PostBuildEvent>
   </PropertyGroup>
 </Project>

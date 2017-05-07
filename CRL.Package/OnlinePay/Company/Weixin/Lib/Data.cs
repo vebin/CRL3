@@ -1,10 +1,16 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V3.1
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Web;
 using System.Xml;
 using System.Security.Cryptography;
 using System.Text;
-using LitJson;
 namespace CRL.Package.OnlinePay.Company.Weixin
 {
     /// <summary>
@@ -154,8 +160,8 @@ namespace CRL.Package.OnlinePay.Company.Weixin
             {
                 if (pair.Value == null)
                 {
-                    Log.Error(this.GetType().ToString(), "WxPayData内部含有值为null的字段!");
-                    throw new WxPayException("WxPayData内部含有值为null的字段!");
+                    Log.Error(this.GetType().ToString(), "WxPayData内部含有值为null的字段!"+pair.Key);
+                    throw new WxPayException("WxPayData内部含有值为null的字段!"+pair.Key);
                 }
 
                 if (pair.Key != "sign" && pair.Value.ToString() != "")
@@ -174,7 +180,8 @@ namespace CRL.Package.OnlinePay.Company.Weixin
         */
         public string ToJson()
         {
-            string jsonStr = JsonMapper.ToJson(m_values);
+            //string jsonStr = JsonMapper.ToJson(m_values);
+            string jsonStr = Newtonsoft.Json.JsonConvert.SerializeObject(m_values);
             return jsonStr;
         }
 

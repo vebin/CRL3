@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V3.1
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Data;
 using System.Configuration;
 using System.Linq;
@@ -41,6 +48,26 @@ namespace CRL.Package.OnlinePay.Company
             get
             {
                 return GetAbsUrl(ChargeConfig.GetConfigKey(ThisCompanyType, ChargeConfig.DataType.ReturnUrl));
+            }
+        }
+        /// <summary>
+        /// 证书路径
+        /// </summary>
+        public string CertFile
+        {
+            get
+            {
+                return ChargeConfig.GetConfigKey(ThisCompanyType, ChargeConfig.DataType.CertFile);
+            }
+        }
+        /// <summary>
+        /// 证书密码
+        /// </summary>
+        public string CertFilePass
+        {
+            get
+            {
+                return ChargeConfig.GetConfigKey(ThisCompanyType, ChargeConfig.DataType.CertFilePass);
             }
         }
         /// <summary>

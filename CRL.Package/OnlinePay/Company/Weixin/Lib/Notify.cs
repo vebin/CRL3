@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V3.1
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Web;
 using System.Web.UI;
@@ -63,11 +70,9 @@ namespace CRL.Package.OnlinePay.Company.Weixin
         }
 
         //派生类需要重写这个方法，进行不同的回调处理
-        public virtual bool ProcessNotify(out string error, out string out_trade_no)
+        public virtual WxPayData ProcessNotify()
         {
-            error = "";
-            out_trade_no = "";
-            return false;
+            return null;
         }
     }
 }

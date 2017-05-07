@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,10 +20,28 @@ namespace CRL
         internal static ConcurrentDictionary<Type, Attribute.TableAttribute> typeCache = new ConcurrentDictionary<Type, Attribute.TableAttribute>();
         /// <summary>
         /// 对象类型缓存
+        /// 类型+key
         /// </summary>
-        internal static ConcurrentDictionary<Type, string> ModelKeyCache = new ConcurrentDictionary<Type, string>();
+        static ConcurrentDictionary<string, string> ModelKeyCache = new ConcurrentDictionary<string, string>();
 
-
+        #region modelKey
+        public static bool GetModelKeyCache(Type type, string dataBase, out string key)
+        {
+            var typeKey = string.Format("{0}|{1}", type, dataBase);
+            return ModelKeyCache.TryGetValue(typeKey, out key);
+        }
+        public static void SetModelKeyCache(Type type, string dataBase,  string key)
+        {
+            var typeKey = string.Format("{0}|{1}", type, dataBase);
+            ModelKeyCache[typeKey] = key;
+        }
+        public static void RemoveModelKeyCache(Type type, string dataBase)
+        {
+            var typeKey = string.Format("{0}|{1}", type, dataBase);
+            string val;
+            ModelKeyCache.TryRemove(typeKey, out val);
+        }
+        #endregion
         /// <summary>
         /// 根据类型返回表名
         /// 如果设置了分表,返回分表名
@@ -35,7 +60,7 @@ namespace CRL
             {
                 if (dbContext.ShardingMainDataIndex == 0)
                 {
-                    throw new Exception("未设置分表定位索引,dbContext.ShardingMainDataIndex");
+                    throw new CRLException("未设置分表定位索引,dbContext.ShardingMainDataIndex");
                 }
                 var location = Sharding.DBService.GetLocation(tableName, dbContext.ShardingMainDataIndex, dbContext.DBLocation.ShardingDataBase);
                 tableName = location.TablePart.PartName;
@@ -49,8 +74,15 @@ namespace CRL
         /// <returns></returns>
         public static Attribute.TableAttribute GetTable(Type type)
         {
-            if (typeCache.ContainsKey(type))
-                return typeCache[type];
+            Attribute.TableAttribute table;
+            var b = typeCache.TryGetValue(type, out table);
+            if (b)
+            {
+                if (table.Fields.Count > 0)
+                {
+                    return table;
+                }
+            }
             object[] objAttrs = type.GetCustomAttributes(typeof(Attribute.TableAttribute), true);
             Attribute.TableAttribute des;
             if (objAttrs == null || objAttrs.Length == 0)
@@ -80,44 +112,29 @@ namespace CRL
             SetProperties(des);
             return des;
         }
-        //internal static void SetDBAdapterCache(Type type, DBAdapter.DBAdapterBase dBAdapter)
-        //{
-        //    var table = GetTable(type);
-        //    if (table.DBAdapter != null)
-        //    {
-        //        return;
-        //    }
-        //    table.DBAdapter = dBAdapter;
-        //}
-        //internal static DBAdapter.DBAdapterBase GetDBAdapterFromCache(Type type)
-        //{
-        //    var table = GetTable(type);
-        //    if (table.DBAdapter == null)
-        //        throw new Exception("未初始对应的适配器,在类型:" + type);
-        //    return table.DBAdapter;
-        //}
         /// <summary>
-        /// 获取字段,并指定是否为基本查询字段(包函虚拟字段)
+        /// 获取数据库字段,包函虚拟字段
         /// </summary>
         /// <param name="type"></param>
-        /// <param name="onlyField">是否为基本查询字段</param>
+        /// <param name="onlyField"></param>
         /// <returns></returns>
         public static IgnoreCaseDictionary<Attribute.FieldAttribute> GetProperties(Type type, bool onlyField)
         {
             var table = GetTable(type);
-            var list = new IgnoreCaseDictionary<Attribute.FieldAttribute>();
-            foreach (var item in table.Fields)
-            {
-                if (onlyField)
-                {
-                    if (item.FieldType != Attribute.FieldType.数据库字段 && item.FieldType != Attribute.FieldType.虚拟字段)
-                    {
-                        continue;
-                    }
-                }
-                list.Add(item.Name, item.Clone());
-            }
-            return list;
+            return table.FieldsDic;
+            //var list = new IgnoreCaseDictionary<Attribute.FieldAttribute>();
+            //foreach (var item in table.Fields)
+            //{
+            //    if (onlyField)
+            //    {
+            //        if (item.FieldType == Attribute.FieldType.关联字段)
+            //        {
+            //            continue;
+            //        }
+            //    }
+            //    list.Add(item.MemberName, item.Clone());
+            //}
+            //return list;
         }
         static void SetProperties(Attribute.TableAttribute table)
         {
@@ -127,10 +144,12 @@ namespace CRL
             }
             var type = table.Type;
             List<Attribute.FieldAttribute> list = new List<CRL.Attribute.FieldAttribute>();
+            var fieldDic = new IgnoreCaseDictionary<Attribute.FieldAttribute>();
             //string fieldPat = @"^([A-Z][a-z|\d]+)+$";
             int n = 0;
+            Attribute.FieldAttribute keyField = null;
             #region 读取
-            List<PropertyInfo> typeArry = table.Type.GetProperties().ToList();
+            var typeArry = table.Type.GetProperties().ToList();
             //移除重复的
             var dic = new Dictionary<string, PropertyInfo>();
             foreach (PropertyInfo info in typeArry)
@@ -144,7 +163,7 @@ namespace CRL
             {
                 //if (!System.Text.RegularExpressions.Regex.IsMatch(info.Name, fieldPat))
                 //{
-                //    throw new Exception(string.Format("属性名:{0} 不符合规则:{1}", info.Name, fieldPat));
+                //    throw new CRLException(string.Format("属性名:{0} 不符合规则:{1}", info.Name, fieldPat));
                 //}
                 //排除没有SET方法的属性
                 if (info.GetSetMethod() == null)
@@ -166,17 +185,17 @@ namespace CRL
                 }
                 f.SetPropertyInfo(info);
                 f.PropertyType = propertyType;
-                f.Name = info.Name;
+                f.MemberName = info.Name;
                 f.TableName = table.TableName;
                 f.ModelType = table.Type;
-                if (!string.IsNullOrEmpty(f.VirtualField))
-                {
-                    if (SettingConfig.StringFormat != null)
-                    {
-                        f.VirtualField = SettingConfig.StringFormat(f.VirtualField);
-                    }
-                    f.VirtualField = f.VirtualField.Replace("$", "{" + type.FullName + "}");
-                }
+                //if (!string.IsNullOrEmpty(f.VirtualField))
+                //{
+                //    if (SettingConfig.StringFormat != null)
+                //    {
+                //        f.VirtualField = SettingConfig.StringFormat(f.VirtualField);
+                //    }
+                //    f.VirtualField = f.VirtualField.Replace("$", "{" + type.FullName + "}");//虚拟字段使用Type名
+                //}
                 //排除不映射字段
                 if (!f.MapingField)
                 {
@@ -191,20 +210,32 @@ namespace CRL
                 {
                     table.PrimaryKey = f;
                     f.FieldIndexType = Attribute.FieldIndexType.非聚集唯一;
+                    keyField = f;
                     n += 1;
+                }
+                if (f.FieldType != Attribute.FieldType.关联字段)
+                {
+                    fieldDic.Add(f.MemberName, f);
                 }
                 list.Add(f);
             }
             if (n == 0)
             {
-                //throw new Exception(string.Format("对象{0}未设置任何主键", type.Name));
+                //throw new CRLException(string.Format("对象{0}未设置任何主键", type.Name));
             }
             else if (n > 1)
             {
-                throw new Exception(string.Format("对象{0}设置的主键字段太多 {1}", type.Name, n));
+                throw new CRLException(string.Format("对象{0}设置的主键字段太多 {1}", type.Name, n));
             }
             #endregion
+            //主键排前面
+            if (keyField != null)
+            {
+                list.Remove(keyField);
+                list.Insert(0, keyField);
+            }
             table.Fields = list;
+            table.FieldsDic = fieldDic;
         }
     }
 }

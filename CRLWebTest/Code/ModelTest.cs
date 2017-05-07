@@ -1,10 +1,63 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 
 namespace WebTest.Code
 {
+    public class TestModelManage : CRL.BaseProvider<TestModel>
+    {
+        public static TestModelManage Instance
+        {
+            get
+            {
+                return new TestModelManage();
+            }
+        }
+    }
+    [CRL.Attribute.Table(TableName = "TestModel_1")]
+    public class TestModel : CRL.IModel
+    {
+        protected override bool CheckRepeatedInsert
+        {
+            get
+            {
+                return false;
+            }
+        }
+        [CRL.Attribute.Field(IsPrimaryKey = true)]
+        public int Id
+        {
+            get;
+            set;
+        }
+        [CRL.Attribute.Field(Length = 50)]
+        public string Name
+        {
+            get;
+            set;
+        }
+        public string Name2
+        {
+            get;
+            set;
+        }
+        public override string CheckData()
+        {
+            if (Name!="hubro")
+            {
+                return "输入的值?";
+            }
+            return base.CheckData();
+        }
+    }
     [CRL.Attribute.Table(TableName="table1")]//映射表名为table1
     public class ModelTest:CRL.IModelBase
     {
@@ -71,15 +124,15 @@ namespace WebTest.Code
             get;
             set;
         }
-        /// <summary>
-        /// 虚拟字段,等同于 year($addtime) as Year
-        /// 字段前需加前辍,以在关联查询时区分
-        /// </summary>
-        [CRL.Attribute.Field(VirtualField = "year($addtime)")]
-        public int Year
-        {
-            get;
-            set;
-        }
+        ///// <summary>
+        ///// 虚拟字段,等同于 year($addtime) as Year
+        ///// 字段前需加前辍,以在关联查询时区分
+        ///// </summary>
+        //[CRL.Attribute.Field(VirtualField = "year($addtime)")]
+        //public int Year
+        //{
+        //    get;
+        //    set;
+        //}
     }
 }

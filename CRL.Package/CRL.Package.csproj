@@ -35,17 +35,14 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="CoreHelper">
-      <HintPath>..\ref\CoreHelper.dll</HintPath>
+      <HintPath>..\packages\CoreHelper.dll</HintPath>
     </Reference>
     <Reference Include="Interop.CHINAPNRLib">
-      <HintPath>..\ref\Interop.CHINAPNRLib.dll</HintPath>
+      <HintPath>..\packages\Interop.CHINAPNRLib.dll</HintPath>
       <EmbedInteropTypes>False</EmbedInteropTypes>
     </Reference>
-    <Reference Include="LitJson">
-      <HintPath>..\ref\LitJson.dll</HintPath>
-    </Reference>
     <Reference Include="Newtonsoft.Json">
-      <HintPath>..\ref\Newtonsoft.Json.dll</HintPath>
+      <HintPath>..\packages\Newtonsoft.Json.4.5.11\lib\net40\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.DataAnnotations" />
@@ -90,6 +87,7 @@
     <Compile Include="OnlinePay\Company\Alipay\AlipayNotify.cs" />
     <Compile Include="OnlinePay\Company\Alipay\AlipaySubmit.cs" />
     <Compile Include="OnlinePay\Company\Alipay\Config.cs" />
+    <Compile Include="OnlinePay\Company\Alipay\RSA.cs" />
     <Compile Include="OnlinePay\Company\Bill99\Banks.cs" />
     <Compile Include="OnlinePay\Company\Bill99\Bill99Company.cs" />
     <Compile Include="OnlinePay\Company\Bill99\Bill99Util.cs" />
@@ -205,12 +203,6 @@
     <Compile Include="TradeType\TradeTypeManage.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CRL\CRL.csproj">
-      <Project>{221a152b-1136-46a0-bf49-37d8e8ef19a0}</Project>
-      <Name>CRL</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <Content Include="Resources\area.txt" />
   </ItemGroup>
   <ItemGroup>
@@ -218,6 +210,12 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CRL\CRL.csproj">
+      <Project>{221a152b-1136-46a0-bf49-37d8e8ef19a0}</Project>
+      <Name>CRL</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -208,3 +208,118 @@
 2016-02-29
 	增加Update方法
 	Update<TOjbect>(Expression<Func<TModel, bool>> expression, TOjbect updateValue) where TOjbect : class
+2016-03-11
+	修改对象转换ToType<T,T2>错误判断
+2016-03-14
+	修改ObjectConvert.ConvertObject方法,Nullable转换错误
+	增加QueryItem按排序返回方法
+2016-03-19
+	优化权限控制标注,不需要再手写判断权限了 MenuAuthorAttribute
+	增加缓存查询并行查询开关CacheQueryAsParallel
+2016-04-14
+	增加权限系统数据库切换
+	增加Core.Mvc对查询直接返回分页对象的扩展方法public static PageObj<T> ToPageObj<T>(this CRL.LambdaQuery.LambdaQuery<T> query) 
+	使查询方法表达式支持属性访问参数如 b=>b.Name.Like(b.Code)
+2016-04-15
+	Join查询分支增加Where方法,以累加条件
+2016-04-19
+	增加关联更新RelationUpdate,解决多表关联更新
+2016-04-22
+	修改属性表达式解析的一个错误
+	BaseController增加缓存管理和对象管理的方法
+2016-04-25
+	BaseController增加统一错误捕获方法
+	修改后台字段检查线程异常问题
+2016-04-29
+	增加关联删除方法 Delete<TModel, TJoin>(Expression<Func<TModel, TJoin, bool>> expression)
+2016-05-06
+	修改微信支付接口一些错误
+	查询字段作了关键字处理,再也不用提心关键字了,手写的除外
+2016-05-30
+	增加Exists查询方法
+2016-06-12
+	修改微信支付通知路径错误
+	优化了关联更新和删除,使能用完整的Query表示条件
+	增加扩展方法Delete<T>(this LambdaQuery<T> query) Update<T>(this LambdaQuery<T> query, ParameCollection updateValue)
+	帐户模块帐号改为int AccountDetail.Account
+2016-06-24
+	优化了值修改通知Change方法,对象值也会被同步了
+2016-07-18
+	升级到版本4.0,非关系型数据库MongoDB能被支持了
+	优化IgnoreCaseDictionary,Key保持原始值
+2016-07-22
+	增加字段类型转换支持 => b.Id.ToString() == "123" 能转换成cast语法了
+	调整分页参数判断
+2016-07-23
+	优化了对象映射赋值，使用Tuple委托
+2016-08-08
+	修改关联删除和更新时,条件没有传入
+	修改委托赋值时类型转换错误
+2016-08-11
+	属性可以自定义对字段名了
+	[CRL.Attribute.Field(MappingName = "ProductName1")]
+	public string ProductName
+2016-08-17
+	WinForm下,线程不能自动回收,改为Timer
+2016-08-20
+	优化了对象映射,名称不匹配时异常
+	修改了一些关键字错误
+2016-9-10
+	增加SettingConfig.AutoTrackingModel 以设置是否自动跟踪对象更改
+	增加WithTrackingModel查询设置,联合一起用
+	增加IModel.BeginTracking方法,手动跟踪对象更改
+2016-9-22
+	优化映射,更快了
+	自定义字段名查询时没什么BUG了
+2016-09-26
+	优化常量解析,表检查优化
+2016-10-14
+	去掉对象赋值索引,用SetIndexData方法代替
+	修正缓存不存在时更新空值错误
+	版本升级为4.1
+2016-10-20
+	优化字符串操作
+2016-11-01
+	修正了bool一元运算解析
+	query.Where(b => b.IsTop);解析为IsTop=1
+2016-11-09
+	修正了表达式创建,变量作用域的BUG
+2016-11-18
+	支持嵌套查询和返回匿名对象了
+2016-11-22
+	增加了Union查询
+	版本升级到4.2
+2016-11-25
+	字段筛选也支持函数了,和条件筛选一致
+	Select((a, b) => new { a.CategoryName, orderid = b.OrderId.IsNull("22") })
+2016-12-08
+	字段筛选和方法表达式解析被缓存了
+	二元运算和常量参数也缓存了
+2016-12-12
+	数据访问上下文在同一线程访问下是一个了
+2016-12-19
+	优化数据库事务调用,只生成一个数据访问上下文PackageTrans2(TransMethod method, out string error)
+	增加当前调用数据访问上下文统计Base.GetCallDBContext
+2017-01-20
+	增加了IMode GetUpdateField,IsModified 用来判断属性是否被修改过
+2017-02-10
+	修改解析缓存错误,导至变量查询一直一样
+2017-02-24
+	修改缓存能按库进行划分,不同的库名不同缓存管理
+2017-03-07
+	修改一个解析缓存错误
+	修改语句查询,字段映射顺序问题
+	增加解析null判断
+2017-03-13
+	SqlBulkCopy支持事务了,修改数据库事务PackageTrans2没有正确回滚
+	DbTransaction事务可以嵌套调用了
+2017-03-20
+	增加CRLDbConnectionScope,使多次访问只用打开一次数据连接
+	DbTransaction事务修改为基于此控制
+	增加PackageMethod方法封装
+2017-04-14
+	优化表达式序列化,常用方法和转换能支持了
+	修改枚举值取值转换时错误
+	修改按参数列新时$关键字判断错误
+2017-04-25
+	CallContext修改逻辑读为正常读,原因是开启线程时,容易造成只有一个实例,TODO,但是会引一个空实例BUG,未发现

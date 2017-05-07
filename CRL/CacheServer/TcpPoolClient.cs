@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -63,9 +70,9 @@ namespace CRL.CacheServer
         public override string SendQuery(string query)
         {
             var data = encode.GetBytes(query);
-            if (Connections.Count > 300)
+            if (Connections.Count > 500)
             {
-                throw new Exception("TcpClientPool连接已超过300");
+                throw new CRLException("TcpClientPool连接已超过500");
             }
             Connection connection;
             lock (lockObj)
@@ -89,7 +96,7 @@ namespace CRL.CacheServer
             {
                 //connection.Socket.Dispose();
                 //Connections.Remove(connection);
-                throw new Exception("连接到缓存服务器时发生错误:" + connection.Socket.LastException.Message);
+                throw new CRLException("连接到缓存服务器时发生错误:" + connection.Socket.LastException.Message);
             }
             var response = encode.GetString(result);
             return response;

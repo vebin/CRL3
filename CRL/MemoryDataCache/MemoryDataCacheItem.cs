@@ -1,4 +1,11 @@
-﻿using CoreHelper;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using CoreHelper;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -43,10 +50,21 @@ namespace CRL.MemoryDataCache
         /// </summary>
         public DateTime UseTime = DateTime.Now;
         public DBHelper DBHelper;
+        /// <summary>
+        /// 库名
+        /// </summary>
+        public string DatabaseName
+        {
+            get
+            {
+                return DBHelper.DatabaseName;
+            }
+        }
         public Dictionary<string, object> Params;
         /// <summary>
         /// 查询次数
         /// </summary>
         public int QueryCount = 0;
+        public IEnumerable<Attribute.FieldMapping> Mapping;
     }
 }

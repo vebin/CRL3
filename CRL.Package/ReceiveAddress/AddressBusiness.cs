@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V3.1
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,17 +13,21 @@ using System.Collections;
 
 namespace CRL.Package.ReceiveAddress
 {
-    /// <summary>
-    /// 收货地址维护
-    /// </summary>
-    public class AddressBusiness<TType, TModel> : BaseProvider<TModel>
+    public class AddressBusiness<TType, TModel> : AddressBusiness<TModel>
         where TType : class
-        where TModel : Address,new()
+        where TModel : Address, new()
     {
         public static AddressBusiness<TType, TModel> Instance
         {
             get { return new AddressBusiness<TType, TModel>(); }
         }
+    }
+    /// <summary>
+    /// 收货地址维护
+    /// </summary>
+    public class AddressBusiness<TModel> : BaseProvider<TModel>
+        where TModel : Address,new()
+    {
 
         /// <summary>
         /// 获取用户收货地址

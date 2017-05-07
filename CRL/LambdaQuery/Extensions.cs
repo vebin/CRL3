@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.EnterpriseServices;
 using System.Linq;
 using System.Linq.Expressions;
@@ -9,7 +16,7 @@ namespace CRL.LambdaQuery
     /// <summary>
     /// 表达式扩展
     /// </summary>
-    internal static partial class Extensions
+    public static partial class Extensions
     {
 
         /// <summary>
@@ -344,7 +351,7 @@ namespace CRL.LambdaQuery
                 return right;
             if (right == null)
                 return left;
-            return Expression.AndAlso(left, right);
+            return Expression.And(left, right);
         }
 
         /// <summary>
@@ -359,7 +366,7 @@ namespace CRL.LambdaQuery
                 return right;
             if (right == null)
                 return left;
-            return left.Compose(right, Expression.AndAlso);
+            return left.Compose(right, Expression.And);
         }
 
         #endregion
@@ -373,7 +380,7 @@ namespace CRL.LambdaQuery
         /// <param name="right">右操作数</param>
         public static Expression Or(this Expression left, Expression right)
         {
-            return Expression.OrElse(left, right);
+            return Expression.Or(left, right);
         }
 
         /// <summary>
@@ -385,7 +392,7 @@ namespace CRL.LambdaQuery
         /// <returns></returns>
         public static Expression<Func<T, bool>> Or<T>(this Expression<Func<T, bool>> first, Expression<Func<T, bool>> second)
         {
-            return first.Compose(second, Expression.OrElse);
+            return first.Compose(second, Expression.Or);
         }
 
         #endregion
@@ -410,7 +417,7 @@ namespace CRL.LambdaQuery
     /// <summary>
     /// 操作符
     /// </summary>
-    internal enum Operator
+    public enum Operator
     {
         None,
         /// <summary>

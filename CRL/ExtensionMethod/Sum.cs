@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,9 +23,9 @@ namespace CRL
         /// <typeparam name="T"></typeparam>
         /// <param name="origin"></param>
         /// <returns></returns>
-        public static int SUM<T>(this T origin) where T:struct
+        public static T SUM<T>(this T origin) where T : struct
         {
-            return 0;
+            return default(T);
         }
         /// <summary>
         /// 表示SUM此字段
@@ -26,9 +33,9 @@ namespace CRL
         /// <typeparam name="T"></typeparam>
         /// <param name="origin"></param>
         /// <returns></returns>
-        public static int SUM<T>(this Nullable<T> origin) where T : struct
+        public static T SUM<T>(this Nullable<T> origin) where T : struct
         {
-            return 0;
+            return default(T);
         }
 
         /// <summary>
@@ -39,9 +46,9 @@ namespace CRL
         /// <param name="origin"></param>
         /// <param name="resultSelector"></param>
         /// <returns></returns>
-        public static int SUM<T, TResult>(this T origin, Expression<Func<T, TResult>> resultSelector) where T : IModel
+        public static TResult SUM<T, TResult>(this T origin, Expression<Func<T, TResult>> resultSelector) where T : IModel
         {
-            return 0;
+            return default(TResult);
         }
     }
 }

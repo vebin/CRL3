@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V3.1
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,16 +15,19 @@ using System.Collections;
 namespace CRL.Package.Account
 {
 
-    /// <summary>
-    /// 帐号维护,区分不同的帐号类型和流水类型
-    /// </summary>
-    public class AccountBusiness<TType> : BaseProvider<AccountDetail> where TType : class
+    public class AccountBusiness<TType> : AccountBusiness where TType : class
     {
 
         public static AccountBusiness<TType> Instance
         {
             get { return new AccountBusiness<TType>(); }
         }
+    }
+    /// <summary>
+    /// 帐号维护,区分不同的帐号类型和流水类型
+    /// </summary>
+    public class AccountBusiness : BaseProvider<AccountDetail>
+    {
         /// <summary>
         /// 创建帐户
         /// </summary>
@@ -37,7 +47,11 @@ namespace CRL.Package.Account
         /// <returns></returns>
         public AccountDetail GetAccount(int account, Enum accountType, Enum transactionType)
         {
-            return GetAccount(account.ToString(), accountType.ToInt(), transactionType.ToInt());
+            return GetAccount(account, accountType.ToInt(), transactionType.ToInt());
+        }
+        public AccountDetail GetAccount(string account, int accountType, int transactionType)
+        {
+            return GetAccount(account.ToInt(), accountType, transactionType);
         }
         /// <summary>
         /// 取得帐户信息,没有则创建(实时)
@@ -46,7 +60,7 @@ namespace CRL.Package.Account
         /// <param name="accountType"></param>
         /// <param name="transactionType"></param>
         /// <returns></returns>
-        public AccountDetail GetAccount(string account, int accountType, int transactionType)
+        public AccountDetail GetAccount(int account, int accountType, int transactionType)
         {
             var info = QueryItem(b => b.Account == account && b.TransactionType == transactionType && b.AccountType == accountType);
             if (info == null)
@@ -90,11 +104,11 @@ namespace CRL.Package.Account
         /// </summary>
         /// <param name="accountId"></param>
         /// <returns></returns>
-        public string GetAccountNoFromCache(int accountId)
+        public int GetAccountNoFromCache(int accountId)
         {
             var info = GetAccountFromCache(accountId);
             if (info == null)
-                return null;
+                return 0;
             return info.Account;
         }
         /// <summary>
@@ -106,7 +120,11 @@ namespace CRL.Package.Account
         /// <returns></returns>
         public int GetAccountId(int account, Enum accountType, Enum transactionType)
         {
-            return GetAccountId(account.ToString(), accountType.ToInt(), transactionType.ToInt());
+            return GetAccountId(account, accountType.ToInt(), transactionType.ToInt());
+        }
+        public int GetAccountId(string account, int accountType, int transactionType)
+        {
+            return GetAccountId(account, accountType, transactionType);
         }
         /// <summary>
         /// 取得帐户ID(从缓存)
@@ -115,7 +133,7 @@ namespace CRL.Package.Account
         /// <param name="accountType">帐号类型,用以区分不同渠道用户</param>
         /// <param name="transactionType"></param>
         /// <returns></returns>
-        public int GetAccountId(string account,int accountType, int transactionType)
+        public int GetAccountId(int account,int accountType, int transactionType)
         {
             int id = 0;
             foreach (var item in detailInfoCache.Values)

@@ -1,4 +1,11 @@
-﻿using CoreHelper.SocketUtil;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using CoreHelper.SocketUtil;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -46,6 +53,10 @@ namespace CRL.CacheServer
             {
                 Log("处理数据出错：" + ex.Message);
                 result = "error,服务器内部错误:" + ex.Message;
+            }
+            if (result.Length > 1024 * 50)
+            {
+                result = "error,返回数据长度超过了50K,数据可能无法返回,请缩小查询范围";
             }
             //发送数据
             var data2 = encode.GetBytes(result);

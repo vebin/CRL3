@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -20,12 +27,39 @@ namespace CRL
 
         internal override DbContext GetDbContext()
         {
+            DbContext dbContext = null;
+            ////cache = false;
+            //string contextName = "DbContext." + GetType().Name;//同一线程调用只创建一次
+            //var _BeginTransContext = CallContext.GetData<bool>(Base.CRLContextName);
+            //if (_BeginTransContext)//对于数据库事务,只创建一个上下文
+            //{
+            //    contextName = "TransDbContext";
+            //}
+
+            //if (cache)
+            //{
+            //    dbContext = CallContext.GetData<DbContext>(contextName);
+            //}
+            //if (dbContext != null)
+            //{
+            //    return dbContext;
+            //}
             if (SettingConfig.GetDbAccess == null)
             {
-                throw new Exception("请配置CRL数据访问对象,实现CRL.SettingConfig.GetDbAccess");
+                throw new CRLException("请配置CRL数据访问对象,实现CRL.SettingConfig.GetDbAccess");
             }
             var helper = SettingConfig.GetDbAccess(dbLocation);
-            var dbContext = new DbContext(helper, dbLocation);
+            //helper.Name = Guid.NewGuid().ToString();
+            dbContext = new DbContext(helper, dbLocation);
+            //if (cache)
+            //{
+            //    dbContext.Name = contextName;
+            //    var allKey = "AllDbContext";
+            //    var allList = Base.GetCallDBContext();
+            //    CallContext.SetData(contextName, dbContext);
+            //    allList.Add(contextName);
+            //    CallContext.SetData(allKey, allList);
+            //}
             return dbContext;
         }
         #region 属性
@@ -33,6 +67,17 @@ namespace CRL
         /// 是否从远程查询缓存
         /// </summary>
         protected virtual bool QueryCacheFromRemote
+        {
+            get
+            {
+                return false;
+            }
+        }
+        /// <summary>
+        /// 是否启用缓存并行查询(耗CPU,但速度快),默认false
+        /// 当数据量大于10W时才会生效
+        /// </summary>
+        protected virtual bool CacheQueryAsParallel
         {
             get
             {
@@ -48,11 +93,11 @@ namespace CRL
         public void ClearCache()
         {
             Type type = typeof(TModel);
-            if (TypeCache.ModelKeyCache.ContainsKey(type))
+            var key = "";
+            if (TypeCache.GetModelKeyCache(type, DBExtend.__DbHelper.DatabaseName, out key))
             {
-                CRL.MemoryDataCache.CacheService.RemoveCache(TypeCache.ModelKeyCache[type]);
-                string val;
-                TypeCache.ModelKeyCache.TryRemove(type,out val);
+                CRL.MemoryDataCache.CacheService.RemoveCache(key);
+                TypeCache.RemoveModelKeyCache(type, DBExtend.__DbHelper.DatabaseName);
             }
         }
         /// <summary>
@@ -62,6 +107,18 @@ namespace CRL
         protected virtual LambdaQuery<TModel> CacheQuery()
         {
             return GetLambdaQuery();
+        }
+        int allCacheCount = -1;
+        int AllCacheCount
+        {
+            get
+            {
+                if (allCacheCount == -1)
+                {
+                    allCacheCount = AllCache.Count();
+                }
+                return allCacheCount;
+            }
         }
         /// <summary>
         /// 获取当前对象缓存,不指定条件
@@ -94,7 +151,7 @@ namespace CRL
             var proxy = CacheServerSetting.GetCurrentClient(typeof(TModel));
             if (proxy == null)
             {
-                throw new Exception("未在服务器上找到对应的数据处理类型:" + typeof(TModel).FullName);
+                throw new CRLException("未在服务器上找到对应的数据处理类型:" + typeof(TModel).FullName);
             }
             var data = proxy.Query(expression, out total, pageIndex, pageSize);
             return data;
@@ -126,32 +183,7 @@ namespace CRL
                 return new CacheServer.ResultData();
             }
         }
-        /// <summary>
-        /// 直接按查询数据
-        /// </summary>
-        /// <param name="command"></param>
-        /// <returns></returns>
-        public CacheServer.ResultData DeaDataQueryCommand(CacheServer.Command command)
-        {
-            if (command.CommandType == CacheServer.CommandType.查询)
-            {
-                var expression = LambdaQuery.CRLExpression.CRLQueryExpression.FromJson(command.Data);
-                var _CRLExpression = new CRL.LambdaQuery.CRLExpression.CRLExpressionVisitor<TModel>().CreateLambda(expression.Expression);
-                var query = GetLambdaQuery();
-                query.Where(_CRLExpression);
-                query.Page(expression.PageSize, expression.PageIndex);
-                var data = query.ToList();
-                int total = query.RowCount;
-                return new CacheServer.ResultData() { Total = total, JsonData = CoreHelper.StringHelper.SerializerToJson(data) };
-            }
-            else
-            {
-                //更新缓存
-                //var item = (TModel)CoreHelper.SerializeHelper.SerializerFromJSON(command.Data, typeof(TModel), Encoding.UTF8);
-                //UpdateById(item);
-                return new CacheServer.ResultData();
-            }
-        }
+
         /// <summary>
         /// 使用CRLExpression从缓存中查询
         /// 仅在缓存接口部署
@@ -160,9 +192,9 @@ namespace CRL
         /// <returns></returns>
         CacheServer.ResultData QueryFromCache(LambdaQuery.CRLExpression.CRLQueryExpression expression)
         {
-            var _CRLExpression = new CRL.LambdaQuery.CRLExpression.CRLExpressionVisitor<TModel>().CreateLambda(expression.Expression);
+            var _CRLExpression = new CRL.LambdaQuery.CRLExpression.CRLExpressionVisitor<TModel>().CreateLambda(expression.Exp);
             int total;
-            var data = QueryFromCacheBase(_CRLExpression, out total, expression.PageIndex, expression.PageSize);
+            var data = QueryFromCacheBase(_CRLExpression, out total, expression.Page, expression.Size);
             return new CacheServer.ResultData() { Total = total, JsonData = CoreHelper.StringHelper.SerializerToJson(data) };
         }
         #endregion
@@ -179,7 +211,7 @@ namespace CRL
             return QueryFromCache(expression, out total, 0, 0);
         }
         /// <summary>
-        /// 从对象缓存中进行查询一项
+        /// 按主键从对象缓存中进行查询一项
         /// </summary>
         /// <param name="key"></param>
         /// <returns></returns>
@@ -188,15 +220,17 @@ namespace CRL
             string id = key.ToString();
             if (QueryCacheFromRemote)
             {
-                var expression = Base.GetQueryIdExpression<TModel>(id);
+                var expression = Base.GetQueryIdExpression<TModel>(key);
                 return QueryItemFromCache(expression);
             }
             else
             {
                 var all = GetCache(CacheQuery());
-                if (all.ContainsKey(id))
+                TModel item;
+                var a = all.TryGetValue(id, out item);
+                if (a)
                 {
-                    return all[id];
+                    return item;
                 }
                 return null;
             }
@@ -241,10 +275,37 @@ namespace CRL
             }
             return QueryFromCacheBase(expression, out total, pageIndex, pageSize);
         }
+        static Dictionary<string, bool> idExpressionCache = new Dictionary<string, bool>();
+        List<TModel> QueryFormCacheById(object id)
+        {
+            var key = id.ToString();
+            var all = GetCache(CacheQuery());
+            if (all == null)
+            {
+                return new List<TModel>();
+            }
+            TModel item;
+            var a = all.TryGetValue(key, out item);
+            if (a)
+            {
+                return new List<TModel>() { item };
+            }
+            return new List<TModel>();
+        }
         List<TModel> QueryFromCacheBase(Expression<Func<TModel, bool>> expression, out int total, int pageIndex = 0, int pageSize = 0)
         {
             total = 0;
             #region 按KEY查找
+            bool b;
+            var a = idExpressionCache.TryGetValue(expression.Body.ToString(), out b);
+            if (a)
+            {
+                var binary = expression.Body as BinaryExpression;
+                var value = LambdaQuery.ConstantValueVisitor.GetParameExpressionValue(binary.Right);
+                var list = QueryFormCacheById(value);
+                total = list.Count();
+                return list;
+            }
             if (expression.Body is BinaryExpression)
             {
                 var binary = expression.Body as BinaryExpression;
@@ -253,29 +314,29 @@ namespace CRL
                     if (binary.Left is MemberExpression)
                     {
                         var member = binary.Left as MemberExpression;
-                        var primaryKey = TypeCache.GetTable(typeof(TModel)).PrimaryKey.Name;
+                        var primaryKey = TypeCache.GetTable(typeof(TModel)).PrimaryKey.MemberName;
                         if (member.Member.Name.ToUpper() == primaryKey.ToUpper())
                         {
-                            var value = (string)LambdaCompileCache.GetExpressionCacheValue(binary.Right);
-                            //var value = (int)Expression.Lambda(binary.Right).Compile().DynamicInvoke();
-                            var all = GetCache(CacheQuery());
-                            if(all==null)
-                            {
-                                return new List<TModel>();
-                            }
-                            if (all.ContainsKey(value))
-                            {
-                                total = 1;
-                                return new List<TModel>() { all[value] };
-                            }
-                            return new List<TModel>();
+                            idExpressionCache[expression.Body.ToString()] = true;
+                            var value = ConstantValueVisitor.GetParameExpressionValue(binary.Right);
+                            var list = QueryFormCacheById(value);
+                            total = list.Count();
+                            return list; 
                         }
                     }
                 }
             }
             #endregion
             var predicate = expression.Compile();
-            var data = AllCache.Where(predicate);
+            IEnumerable<TModel> data;
+            if (CacheQueryAsParallel && AllCacheCount > 100000)
+            {
+                data = AllCache.AsParallel().Where(predicate);
+            }
+            else
+            {
+                data = AllCache.Where(predicate);
+            }
             total = data.Count();
             if (pageIndex > 0)
             {
@@ -300,22 +361,24 @@ namespace CRL
             query.__ExpireMinute = expMinute;
             string dataCacheKey;
             var list = new Dictionary<string, TModel>();
-            if (!TypeCache.ModelKeyCache.ContainsKey(type))
+            var a = TypeCache.GetModelKeyCache(type, DBExtend.__DbHelper.DatabaseName, out dataCacheKey);
+            if (!a)
             {
-                var db = GetDbHelper();//避开事务控制,使用新的连接
-                var list2 = db.QueryList<TModel>(query, out dataCacheKey);
+                var db = DBExtend;
+                var list2 = db.QueryOrFromCache<TModel>(query, out dataCacheKey);
                 list = ObjectConvert.ConvertToDictionary<TModel>(list2);
                 lock (lockObj)
                 {
-                    if (!TypeCache.ModelKeyCache.ContainsKey(type))
+                    string key2;
+                    a = TypeCache.GetModelKeyCache(type, DBExtend.__DbHelper.DatabaseName, out key2);
+                    if (!a)
                     {
-                        TypeCache.ModelKeyCache.TryAdd(type, dataCacheKey);
+                        TypeCache.SetModelKeyCache(type, DBExtend.__DbHelper.DatabaseName, dataCacheKey);
                     }
                 }
             }
             else
             {
-                dataCacheKey = TypeCache.ModelKeyCache[type];
                 list = MemoryDataCache.CacheService.GetCacheItem<TModel>(dataCacheKey);
             }
             return list;
@@ -331,7 +394,7 @@ namespace CRL
         /// <returns></returns>
         protected List<T> RunList<T>(string sp) where T : class, new()
         {
-            DBExtend db = DBExtend;
+            AbsDBExtend db = DBExtend;
             return db.RunList<T>(sp);
         }
         #endregion

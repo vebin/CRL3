@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -55,8 +62,10 @@ namespace WebTest.Code
         protected override System.Collections.IList GetInitData()
         {
             var list = new List<ProductData>();
-            list.Add(new ProductData() { BarCode = "123", Number = 10,UserId=1 });
-            list.Add(new ProductData() { BarCode = "456", Number = 10,UserId=2 });
+            for (int i = 0; i < 1000; i++)
+            {
+                list.Add(new ProductData() { InterFaceUser = "2222", ProductName = "product" + i, BarCode = "code" + i, UserId = 1, Number = i });
+            }
             return list;
         }
         /// <summary>
@@ -98,6 +107,10 @@ namespace WebTest.Code
             get;
             set;
         }
+        /// <summary>
+        /// 映射字段名为ProductName1
+        /// </summary>
+        [CRL.Attribute.Field(MapingName = "ProductName1")]
         public string ProductName
         {
             get;
@@ -143,6 +156,12 @@ namespace WebTest.Code
             get;
             set;
         }
+        [CRL.Attribute.Field(Length =4000)]
+        public string Remark
+        {
+            get;
+            set;
+        }
         public bool IsTop
         {
             get;
@@ -176,15 +195,15 @@ namespace WebTest.Code
         //    get;
         //    set;
         //}
-        /// <summary>
-        /// 虚拟字段,等同于 year($addtime) as Year
-        /// 字段前需加前辍,以在关联查询时区分
-        /// </summary>
-        [CRL.Attribute.Field(VirtualField = "year($addtime)")]
-        public int Year
-        {
-            get;
-            set;
-        }
+        ///// <summary>
+        ///// 虚拟字段,等同于 year($addtime) as Year
+        ///// 字段前需加前辍,以在关联查询时区分
+        ///// </summary>
+        //[CRL.Attribute.Field(VirtualField = "year($addtime)")]
+        //public int Year
+        //{
+        //    get;
+        //    set;
+        //}
     }
 }

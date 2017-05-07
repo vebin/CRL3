@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,6 +14,8 @@ using System.Reflection;
 using System.Data;
 using System.Text.RegularExpressions;
 using System.Linq.Expressions;
+using System.Diagnostics;
+using CRL.LambdaQuery.Mapping;
 
 namespace CRL
 {
@@ -15,113 +24,50 @@ namespace CRL
     /// </summary>
     public class Base
     {
-        ///// <summary>
-        ///// 对集合进行分页
-        ///// </summary>
-        ///// <typeparam name="T"></typeparam>
-        ///// <param name="list"></param>
-        ///// <param name="index">从1开始</param>
-        ///// <param name="pageSize"></param>
-        ///// <returns></returns>
-        //public static List<T> CutList<T>(IEnumerable<T> list, int index, int pageSize) where T : class, new()
-        //{
-        //    return list.Skip((index - 1) * pageSize).Take(pageSize).ToList();
-        //}
-
-        /// <summary>
-        /// 获取查询字段,并自动转换虚拟字段
-        /// </summary>
-        /// <param name="typeArry"></param>
-        /// <returns></returns>
-        internal static string GetQueryFields(IEnumerable<Attribute.FieldAttribute> typeArry)
+        //static internal bool UseEmitCreater = true;
+        internal static Expression<Func<TModel, bool>> GetQueryIdExpression<TModel>(object id)
         {
-            string str = "";
-            foreach (Attribute.FieldAttribute info in typeArry)
-            {
-                str += string.Format("{0},", info.QueryFullScript);
-                //if (info.FieldType == Attribute.FieldType.虚拟字段)
-                //{
-                //    str += string.Format("{0} as {1},", info.VirtualField, info.AliasesName);
-                //}
-                //else if (string.IsNullOrEmpty(info.QueryFullName))
-                //{
-                //    str += string.Format("{0},", info.KeyWordName); 
-                //}
-                //else
-                //{
-                //    str += string.Format("{0},", info.QueryFullName);
-                //}
-            }
-            if (str.Length > 1)
-            {
-                str = str.Substring(0, str.Length - 1);
-            }
-            return str;
-        }
-        internal static Expression<Func<TModel, bool>> GetQueryIdExpression<TModel>(object id) where TModel : IModel, new()
-        {
-            var table = TypeCache.GetTable(typeof(TModel));
+            var type = typeof(TModel);
+            var table = TypeCache.GetTable(type);
             if (table.PrimaryKey.PropertyType != id.GetType())
             {
-                throw new Exception("参数类型与主键类型定义不一致");
+                throw new CRLException("参数类型与主键类型定义不一致");
             }
-            var parameter = Expression.Parameter(typeof(TModel), "b");
+            var parameter = Expression.Parameter(type, "b");
             //创建常数 
             var constant = Expression.Constant(id);
-            MemberExpression member = Expression.PropertyOrField(parameter, table.PrimaryKey.Name);
+            MemberExpression member = Expression.PropertyOrField(parameter, table.PrimaryKey.MemberName);
             var body = Expression.Equal(member, constant);
             //获取Lambda表达式
             var lambda = Expression.Lambda<Func<TModel, Boolean>>(body, parameter);
+            //var pr = lambda.Compile();
             return lambda;
         }
         /// <summary>
-        /// 检测所有对象
+        /// 按程序集查找定义过的MODEL
         /// </summary>
-        /// <param name="db"></param>
         /// <param name="baseType"></param>
         /// <returns></returns>
-        internal static string CheckAllModel(DBExtend db, Type baseType)
+        public static Dictionary<Attribute.TableAttribute,AbsDBExtend> GetAllModel(Type baseType)
         {
-            string msg = "";
-            //var dbcontext = new DbContext(dbHelper,null);
-            //var helper = new CRL.DBExtend(dbcontext);
+            //var assemblies = System.Web.Compilation.BuildManager.GetReferencedAssemblies().Cast<Assembly>().ToArray();
+            //var assemblies = AppDomain.CurrentDomain.GetAssemblies();
             var assembyle = System.Reflection.Assembly.GetAssembly(baseType);
             Type[] types = assembyle.GetTypes();
-            List<Type> findTypes = new List<Type>();
-            var typeCRL = typeof(CRL.IModel);
+            var findTypes = new Dictionary<Attribute.TableAttribute,AbsDBExtend>();
+            var typeCRL = typeof(CRL.IProvider);
             foreach (var type in types)
             {
-                if (type.IsClass)
+                if (typeCRL.IsAssignableFrom(type))
                 {
-                    var type1 = type.BaseType;
-                    while (type1.BaseType != null)
-                    {
-                        if (type1.BaseType == typeCRL || type1 == typeCRL)
-                        {
-                            findTypes.Add(type);
-                            break;
-                        }
-                        type1 = type1.BaseType;
-                    }
+                    var obj = System.Activator.CreateInstance(type) as IProvider;
+                    var table = TypeCache.GetTable(obj.ModelType);
+                    var pro = type.GetProperty("DBExtend", BindingFlags.Instance | BindingFlags.NonPublic);
+                    var db = pro.GetValue(obj) as AbsDBExtend;
+                    findTypes.Add(table, db);
                 }
             }
-
-            try
-            {
-                foreach (var type in findTypes)
-                {
-                    try
-                    {
-                        object obj = System.Activator.CreateInstance(type);
-                        CRL.IModel b = obj as CRL.IModel;
-                        msg += b.CreateTable(db);
-                    }
-                    catch { }
-                }
-            }
-            catch (Exception ero) { }
-            CoreHelper.EventLog.Log(msg);
-            return msg;
+            return findTypes;
         }
 
         /// <summary>
@@ -158,16 +104,6 @@ namespace CRL
             {
                 string key = p.Key.Replace("@","");
                 var t = p.Value.GetType();
-                //if (t.IsValueType)
-                //{
-                //    t = t.GenericTypeArguments[0];
-                //}
-
-                //if (!typeMappint.ContainsKey(t))
-                //{
-                //    throw new Exception(string.Format("找不到对应的字段类型映射 {0} 在 {1}", t, adpater));
-                //}
-                //var par = typeMappint[t];
                 var par = adpater.GetDBColumnType(t);
                 if (t == typeof(System.String))
                 {
@@ -209,5 +145,41 @@ namespace CRL
             var assembly = System.Reflection.Assembly.GetExecutingAssembly().GetName();
             return assembly.Version.ToString();
         }
+        //internal static string FormatFieldPrefix(DBAdapter.DBAdapterBase dBAdapter, Type type, string fieldName)
+        //{
+        //    return "{" + type.FullName + "}" + dBAdapter.KeyWordFormat(fieldName);
+        //}
+        public static void Dispose()
+        {
+            MemoryDataCache.CacheService.StopWatch();
+            ExistsTableCache.ColumnBackgroundCheck.Stop();
+        }
+        /// <summary>
+        /// 获取当前调用所有的数据访问会话
+        /// 可用此检查代码调用深度
+        /// </summary>
+        /// <returns></returns>
+        public static List<string> GetCallDBContext()
+        {
+            var allKey = "AllDBExtend";
+            var allList = CallContext.GetData<List<string>>(allKey);
+            if (allList == null)
+            {
+                allList = new List<string>();
+            }
+            return allList;
+        }
+        public static Dictionary<string, int> GetTempCacheCount()
+        {
+            var dic = new Dictionary<string, int>();
+            dic.Add("表达式二元运算缓存", LambdaQuery.ExpressionVisitor.BinaryExpressionCache.Count);
+            dic.Add("表达式方法解析缓存", LambdaQuery.ExpressionVisitor.MethodCallExpressionCache.Count);
+            dic.Add("表达式属性解析缓存", LambdaQuery.ExpressionVisitor.MemberExpressionCache.Count);
+            dic.Add("表达式字段筛选缓存", LambdaQuery.LambdaQueryBase._GetSelectFieldCache.Count);
+            dic.Add("对象映射列缓存", ObjectConvert.columnCache.Count);
+            return dic;
+        }
+        internal const string UseCRLContextFlagName = "CRLContextFlagName";
+        internal const string CRLContextName = "TransDbContext";
     }
 }

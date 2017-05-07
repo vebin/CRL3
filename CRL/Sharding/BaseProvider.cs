@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -31,7 +38,7 @@ namespace CRL.Sharding
         {
             if (SettingConfig.GetDbAccess == null)
             {
-                throw new Exception("请配置CRL数据访问对象,实现CRL.SettingConfig.GetDbAccess");
+                throw new CRLException("请配置CRL数据访问对象,实现CRL.SettingConfig.GetDbAccess");
             }
             var helper = SettingConfig.GetDbAccess(dbLocation);
             var dbContext = new DbContext(helper, dbLocation);
@@ -52,7 +59,7 @@ namespace CRL.Sharding
         }
         public override void BatchInsert(List<TModel> list, bool keepIdentity = false)
         {
-            throw new Exception("暂不支持");
+            throw new CRLException("暂不支持");
             //todo 判断主数据索引是不是在当前定位
             base.BatchInsert(list, keepIdentity);
         }

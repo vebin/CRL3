@@ -31,6 +31,10 @@ position:fixed ;
 top:20px; 
 left:500px; 
 } 
+        .notSupported
+        {
+            color:red;
+        }
     </style>
     <script>
         $(function () {
@@ -53,6 +57,7 @@ left:500px;
                             menus.Add("关联查询", "/page/Query3.aspx");
                             menus.Add("分页查询", "/page/Pager.aspx");
                             menus.Add("扩展方法查询", "/page/ExtensionMethod.aspx");
+                            menus.Add("使用嵌套查询", "/page/QueryView.aspx");
                             menus.Add("更新数据", "/page/Update.aspx");
                             menus.Add("删除数据", "/page/Delete.aspx");
                             menus.Add("使用缓存", "/page/Cache.aspx");
@@ -68,7 +73,9 @@ left:500px;
                             menus.Add("数据表创建缓存依赖", "/page/TableExistsCache.aspx");
                             menus.Add("导出/导入数据", "/page/ExportAndImport.aspx");
                             menus.Add("大数据分库分表", "/page/Sharding.aspx");
+                            menus.Add("MongoDB测试", "/page/MongoDB.aspx");
                             menus.Add("导出对象文档", "/page/ExportModelInfo.aspx");
+                            menus.Add("CallContext", "/page/CallContext.aspx");
                             menus.Add("版本/讨论", "/page/About.aspx");
                         %>
                         <%foreach (var item in menus)

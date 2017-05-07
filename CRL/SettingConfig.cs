@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -61,6 +68,14 @@ namespace CRL
         /// 是否检测表结构,生产服务器可将此值设为FALSE
         /// </summary>
         public static bool CheckModelTableMaping = true;
+
+        /// <summary>
+        /// 是否自动跟踪对象状态
+        /// 为否则需要调用IMode.BeginTracking(),使更新时能识别
+        /// query.__TrackingModel,同时生效,才进行跟踪
+        /// </summary>
+        public static bool AutoTrackingModel = true;
+
     }
 
 

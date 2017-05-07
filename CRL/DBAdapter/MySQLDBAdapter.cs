@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -82,7 +89,7 @@ EXECUTE  ' {1} ';
             //超过3000设为ntext
             if (propertyType == typeof(System.String) && info.Length > 3000)
             {
-                columnType = "varchar(8000)";
+                columnType = "varchar(max)";
             }
             if (info.Length > 0)
             {
@@ -115,7 +122,7 @@ EXECUTE  ' {1} ';
         /// <returns></returns>
         public override string GetCreateColumnScript(Attribute.FieldAttribute field)
         {
-            string str = string.Format("alter table `{0}` add {1} {2}", field.TableName, field.KeyWordName, field.ColumnType);
+            string str = string.Format("alter table `{0}` add {1} {2}", field.TableName, field.MapingName, field.ColumnType);
             if (!string.IsNullOrEmpty(field.DefaultValue))
             {
                 str += string.Format(" default '{0}' ", field.DefaultValue);
@@ -134,7 +141,7 @@ EXECUTE  ' {1} ';
         /// <returns></returns>
         public override string GetColumnIndexScript(Attribute.FieldAttribute filed)
         {
-            string indexScript = string.Format("ALTER TABLE `{0}` ADD {2} ({1}) ", filed.TableName, filed.KeyWordName, filed.FieldIndexType == Attribute.FieldIndexType.非聚集唯一 ? "UNIQUE" : "INDEX index_name");
+            string indexScript = string.Format("ALTER TABLE `{0}` ADD {2} ({1}) ", filed.TableName, filed.MapingName, filed.FieldIndexType == Attribute.FieldIndexType.非聚集唯一 ? "UNIQUE" : "INDEX index_name");
             return indexScript;
         }
 
@@ -154,7 +161,7 @@ EXECUTE  ' {1} ';
                 string nullStr = item.NotNull ? "NOT NULL" : "";
                 var columnType = GetDBColumnType(item.PropertyType);
 
-                string str = string.Format("{0} {1} {2} ", item.KeyWordName, item.ColumnType, nullStr);
+                string str = string.Format("{0} {1} {2} ", item.MapingName, item.ColumnType, nullStr);
 
                 list2.Add(str);
                 
@@ -211,7 +218,11 @@ EXECUTE  ' {1} ';
             string sql2 = "";
             foreach (Attribute.FieldAttribute info in typeArry)
             {
-                string name = info.Name;
+                if (info.FieldType != Attribute.FieldType.数据库字段)
+                {
+                    continue;
+                }
+                string name = info.MapingName;
                 if (info.IsPrimaryKey)
                 {
                     primaryKey = info;
@@ -220,10 +231,10 @@ EXECUTE  ' {1} ';
                 {
                     continue;
                 }
-                if (!string.IsNullOrEmpty(info.VirtualField))
-                {
-                    continue;
-                }
+                //if (!string.IsNullOrEmpty(info.VirtualField))
+                //{
+                //    continue;
+                //}
                 object value = info.GetValue(obj);
                 if (info.PropertyType.FullName.StartsWith("System.Nullable"))//Nullable<T>类型为空值不插入
                 {
@@ -233,7 +244,7 @@ EXECUTE  ' {1} ';
                     }
                 }
                 value = ObjectConvert.CheckNullValue(value, info.PropertyType);
-                sql1 += string.Format("{0},", info.KeyWordName);
+                sql1 += string.Format("{0},", info.MapingName);
                 sql2 += string.Format("?{0},", name);
                 helper.AddParam(name, value);
             }
@@ -256,7 +267,7 @@ EXECUTE  ' {1} ';
         /// 获取 with(nolock)
         /// </summary>
         /// <returns></returns>
-        public override string GetWithNolockFormat()
+        public override string GetWithNolockFormat(bool v)
         {
             return "";
         }
@@ -437,10 +448,20 @@ end
         {
             throw new NotImplementedException();
         }
-        internal override string PageSqlFormat(string fields, string rowOver, string condition, int start, int end, string sort)
+        public override string PageSqlFormat(string fields, string rowOver, string condition, int start, int end, string sort)
         {
             string sql = "SELECT {0} FROM {1} order by {4} limit {2},{3} ";
             return string.Format(sql, fields, condition, start, end, sort);
+        }
+        public override string GetRelationUpdateSql(string t1, string t2, string condition, string setValue)
+        {
+            string sql = string.Format("update {0} t1, {1} t2 set {2} where {3}", KeyWordFormat(t1)
+                  , KeyWordFormat(t2), setValue, condition);
+            return sql;
+        }
+        public override string CastField(string field, Type fieldType)
+        {
+            throw new NotImplementedException();
         }
     }
 }

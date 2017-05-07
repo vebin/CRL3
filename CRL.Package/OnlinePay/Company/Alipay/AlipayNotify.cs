@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V3.1
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,6 +21,7 @@ namespace CRL.Package.OnlinePay.Company.Alipay
         private string _key = "";                   //商户的私钥
         private string _input_charset = "";         //编码格式
         private string _sign_type = "";             //签名方式
+        private string _public_key = "";            //支付宝的公钥
 
         //支付宝消息验证地址
         private string Https_veryfy_url = "https://mapi.alipay.com/gateway.do?service=notify_verify&";
@@ -32,6 +40,7 @@ namespace CRL.Package.OnlinePay.Company.Alipay
             _partner = Config.Partner.Trim();
             _key = Config.Key.Trim();
             _input_charset = Config.Input_charset.Trim().ToLower();
+            _public_key = Config.Public_key.Trim();
             _sign_type = Config.Sign_type.Trim().ToUpper();
         }
 
@@ -109,6 +118,9 @@ namespace CRL.Package.OnlinePay.Company.Alipay
                 {
                     case "MD5":
                         isSgin = AlipayMD5.Verify(preSignStr, sign, _key, _input_charset);
+                        break;
+                    case "RSA":
+                        isSgin = RSAFromPkcs8.verify(preSignStr, sign, _public_key, _input_charset);
                         break;
                     default:
                         break;

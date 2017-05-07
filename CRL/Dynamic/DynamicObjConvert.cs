@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -9,32 +16,15 @@ namespace CRL.Dynamic
 {
     internal class DynamicObjConvert
     {
-        static dynamic getDataRow(DataRow dr)
+
+        static dynamic getRow(List<string> columns,object[] values)
         {
             dynamic obj = new System.Dynamic.ExpandoObject();
             var dict = obj as IDictionary<string, object>;
-            foreach (DataColumn col in dr.Table.Columns)
+            for (int i = 0; i < values.Count(); i++)
             {
-                dict.Add(col.ColumnName, dr[col.ColumnName]);
-            }
-            return obj;
-        }
-        public static IEnumerable<dynamic> _DataTableToDynamic(DataTable dt)
-        {
-            foreach (DataRow row in dt.Rows)
-            {
-                var d = getDataRow(row);
-                yield return d;
-            }
-        }
-        static dynamic getDataRow(System.Data.Common.DbDataReader reader)
-        {
-            dynamic obj = new System.Dynamic.ExpandoObject();
-            var dict = obj as IDictionary<string, object>;
-            for (int i = 0; i < reader.FieldCount; i++)
-            {
-                string columnName = reader.GetName(i);
-                object value = reader[columnName];
+                string columnName = columns[i];
+                object value = values[i];
                 dict.Add(columnName, value);
             }
             return obj;
@@ -43,34 +33,27 @@ namespace CRL.Dynamic
         {
             var time = DateTime.Now;
             List<dynamic> list = new List<dynamic>();
-            while (reader.Read())
+            var columns = new List<string>();
+            for (int i = 0; i < reader.FieldCount; i++)
             {
-                var d = getDataRow(reader);
-                list.Add(d);
+                columns.Add(reader.GetName(i));
             }
-            reader.Close();
-            runTime = (DateTime.Now - time).TotalMilliseconds;
-            return list;
-        }
-        /// <summary>
-        /// 返回匿名类型
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <typeparam name="TResult"></typeparam>
-        /// <param name="reader"></param>
-        /// <param name="resultSelector"></param>
-        /// <param name="runTime"></param>
-        /// <returns></returns>
-        public static List<TResult> DataReaderToDynamic<T, TResult>(System.Data.Common.DbDataReader reader, Expression<Func<T, TResult>> resultSelector, out double runTime) where T : IModel, new()
-        {
-            var time = DateTime.Now;
-            List<TResult> list = new List<TResult>();
-            var typeArry = TypeCache.GetProperties(typeof(T), true).Values;
-            while (reader.Read())
+            try
             {
-                var detailItem = ObjectConvert.DataReaderToObj(reader, typeof(T), typeArry) as T;
-                var result = resultSelector.Compile()(detailItem);
-                list.Add(result);
+                #region while
+                while (reader.Read())
+                {
+                    object[] values = new object[columns.Count];
+                    reader.GetValues(values);
+                    var d = getRow(columns, values);
+                    list.Add(d);
+                }
+                #endregion
+            }
+            catch(Exception ero)
+            {
+                reader.Close();
+                throw new CRLException("读取数据时发生错误:" + ero.Message);
             }
             reader.Close();
             runTime = (DateTime.Now - time).TotalMilliseconds;

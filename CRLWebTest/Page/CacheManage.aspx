@@ -2,16 +2,19 @@
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <style type="text/css">
         .auto-style2 {
-            width: 70px
+            width: 70px;
         }
+
         .auto-style3 {
-            width: 56px
+            width: 56px;
         }
+
         .auto-style4 {
-            width: 93px
+            width: 93px;
         }
+
         .auto-style5 {
-            width: 133px
+            width: 133px;
         }
     </style>
 </asp:Content>
@@ -32,16 +35,16 @@
         <td width="40">操作</td>
     </tr>
     <%
-        foreach(var item in caches)
+        foreach (var item in caches)
         {
     %>
     <tr>
         <td class="auto-style5"><%=item.Key %></td>
-        <td class="auto-style2"><%=item.DataType %></td>
+        <td class="auto-style2"><%=item.DataType %> [<%=item.DatabaseName %>]</td>
         <td class="auto-style3"><%=item.TimeOut %></td>
         <td class="auto-style4"><%=item.UpdateTime %></td>
         <td><%=item.RowCount %></td>
-        <td><%=item.TableName %></td>
+        <td><%=item.TableName %> </td>
         <td><%=item.Params %></td>
         <td><a href="?type=update&key=<%=item.Key %>" target="_blank">更新</a></td>
     </tr>
@@ -56,4 +59,18 @@
         string key = Request["key"];
         var a = CRL.MemoryDataCache.CacheService.UpdateCache(key);
     </pre>
+    <h3>缓存变量信息</h3>
+    <table border="1">
+        <tr>
+            <td>名称</td>
+            <td>数量</td>
+        </tr>
+        <% foreach (var item in tempCache)
+           {%>
+        <tr>
+            <td><%=item.Key %></td>
+            <td><%=item.Value %></td>
+        </tr>
+        <% }%>
+    </table>
 </asp:Content>

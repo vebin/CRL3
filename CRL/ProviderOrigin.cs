@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -11,9 +18,33 @@ namespace CRL
     /// 基本业务方法封装
     /// </summary>
     /// <typeparam name="TModel">源对象</typeparam>
-    public abstract class ProviderOrigin<TModel>
+    public abstract class ProviderOrigin<TModel>:IProvider
         where TModel : IModel, new()
     {
+        public Type ModelType
+        {
+            get
+            {
+                return typeof(TModel);
+            }
+        }
+        /// <summary>
+        /// 创建当前调用上下文唯一实例
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        public static T CreateInstance<T>() where T : class,new()
+        {
+            //return new T();
+            string contextName = "Instance." + typeof(T);
+            var instance = CallContext.GetData<T>(contextName);
+            if (instance == null)
+            {
+                instance = new T();
+                CallContext.SetData(contextName, instance);
+            }
+            return instance;
+        }
         /// <summary>
         /// 基本业务方法封装
         /// </summary>
@@ -53,24 +84,40 @@ namespace CRL
         /// <returns></returns>
         public LambdaQuery<TModel> GetLambdaQuery()
         {
-            var dbContext2 = GetDbContext();//避开事务控制,使用新的连接
-            var query = new LambdaQuery<TModel>(dbContext2);
+            //var dbContext2 = GetDbContext(true);//避开事务控制,使用新的连接
+            var query = LambdaQueryFactory.CreateLambdaQuery<TModel>(DBExtend.dbContext);
+            return query;
+        }
+        /// <summary>
+        /// 指定查询条件创建表达式实例
+        /// </summary>
+        /// <param name="expression"></param>
+        /// <returns></returns>
+        public LambdaQuery<TModel> GetLambdaQuery(Expression<Func<TModel, bool>> expression)
+        {
+            var query = GetLambdaQuery();
+            query.Where(expression);
             return query;
         }
 
-        #region 数据访问对象
-        DBExtend _dBExtend;
+            #region 数据访问对象
+            AbsDBExtend _dBExtend;
         /// <summary>
         /// 数据访部对象
         /// 当前实例内只会创建一个,查询除外
         /// </summary>
-        protected DBExtend DBExtend
+        protected AbsDBExtend DBExtend
         {
             get
             {
+                 var _useCRLContext = CallContext.GetData<bool>(Base.UseCRLContextFlagName);
+                 if (_useCRLContext)//对于数据库事务,只创建一个上下文
+                 {
+                     return GetDBExtend(true);
+                 }
                 if (_dBExtend == null)
                 {
-                    _dBExtend = GetDbHelper();
+                    _dBExtend = GetDBExtend();
                 }
                 return _dBExtend;
             }
@@ -80,21 +127,52 @@ namespace CRL
             }
         }
         /// <summary>
+        /// 手动设置数据库定位数据
+        /// 用以在GetDbAccess手动判断
+        /// </summary>
+        /// <param name="obj"></param>
+        public void SetDbLocationTag(object obj)
+        {
+            CallContext.SetData("SetDbLocationTag", obj);
+            dbLocation.TagData = obj;
+        }
+        /// <summary>
         /// 数据访问对象[基本方法]
         /// 按指定的类型
         /// </summary>
         /// <returns></returns>
-        protected DBExtend GetDbHelper(Type type = null)
+        protected AbsDBExtend GetDBExtend(bool cache = true)
         {
-            var dbContext2 = GetDbContext();
-            if (type != null)
+            AbsDBExtend db = null;
+            string contextName = "DBExtend." + GetType().Name;//同一线程调用只创建一次
+
+            var _useCRLContext = CallContext.GetData<bool>(Base.UseCRLContextFlagName);
+            if (_useCRLContext)//对于数据库事务,只创建一个上下文
             {
-                dbLocation.ManageType = type;
+                contextName = Base.CRLContextName;
             }
-            var db = new DBExtend(dbContext2);
+            db = CallContext.GetData<AbsDBExtend>(contextName);
+            if (db != null)
+            {
+                return db;
+            }
+            var dbContext2 = GetDbContext();
+            if (_useCRLContext)//使用CRLContext,需由CRLContext来关闭数据连接
+            {
+                dbContext2.DBHelper.AutoCloseConn = false;
+            }
+            db = DBExtendFactory.CreateDBExtend(dbContext2);
             if (dbLocation.ShardingDataBase == null)
             {
                 db.OnUpdateNotifyCacheServer = OnUpdateNotifyCacheServer;
+            }
+            if (cache)
+            {
+                var allKey = "AllDBExtend";
+                var allList = Base.GetCallDBContext();
+                CallContext.SetData(contextName, db);
+                allList.Add(contextName);
+                CallContext.SetData(allKey, allList);
             }
             return db;
         }
@@ -107,9 +185,9 @@ namespace CRL
         /// <returns></returns>
         public virtual string CreateTable()
         {
-            DBExtend db = DBExtend;
+            AbsDBExtend db = DBExtend;
             TModel obj1 = new TModel();
-            var str = obj1.CreateTable(db);
+            var str = ModelCheck.CreateTable(typeof(TModel),db);
             return str;
         }
         /// <summary>
@@ -117,9 +195,9 @@ namespace CRL
         /// </summary>
         public void CreateTableIndex()
         {
-            DBExtend db = DBExtend;
+            AbsDBExtend db = DBExtend;
             TModel obj1 = new TModel();
-            obj1.CheckIndexExists(db);
+            ModelCheck.CheckIndexExists(typeof(TModel),db);
         }
         #endregion
 
@@ -140,8 +218,17 @@ namespace CRL
         /// <param name="p"></param>
         public virtual void Add(TModel p)
         {
-            DBExtend db = DBExtend;
+            AbsDBExtend db = DBExtend;
             db.InsertFromObj(p);
+        }
+        /// <summary>
+        /// 批量插入[基本方法]
+        /// </summary>
+        /// <param name="list"></param>
+        /// <param name="keepIdentity"></param>
+        public virtual void Add(List<TModel> list, bool keepIdentity = false)
+        {
+            BatchInsert(list, keepIdentity);
         }
         /// <summary>
         /// 批量插入[基本方法]
@@ -150,12 +237,28 @@ namespace CRL
         /// <param name="keepIdentity">是否保持自增主键</param>
         public virtual void BatchInsert(List<TModel> list, bool keepIdentity = false)
         {
-            DBExtend db = DBExtend;
+            AbsDBExtend db = DBExtend;
             db.BatchInsert(list, keepIdentity);
         }
         #endregion
 
         #region 查询一项
+        /// <summary>
+        /// 按排序查询一条
+        /// </summary>
+        /// <typeparam name="TResult"></typeparam>
+        /// <param name="expression"></param>
+        /// <param name="sortExpression"></param>
+        /// <param name="desc"></param>
+        /// <returns></returns>
+        public TModel QueryItem<TResult>(Expression<Func<TModel, bool>> expression, Expression<Func<TModel, TResult>> sortExpression, bool desc = true)
+        {
+            var query = GetLambdaQuery();
+            query.Top(1);
+            query.Where(expression).OrderBy(sortExpression, desc);
+            var db = DBExtend;
+            return db.QueryList(query).FirstOrDefault();
+        }
         /// <summary>
         /// 按主键查询一项[基本方法]
         /// </summary>
@@ -163,9 +266,8 @@ namespace CRL
         /// <returns></returns>
         public TModel QueryItem(object id)
         {
-            DBExtend db = DBExtend;
-            var lambda = Base.GetQueryIdExpression<TModel>(id);
-            return QueryItem(lambda);
+            var db = DBExtend;
+            return db.QueryItem<TModel>(id);
         }
         /// <summary>
         /// 按条件取单个记录[基本方法]
@@ -176,36 +278,8 @@ namespace CRL
         /// <returns></returns>
         public TModel QueryItem(Expression<Func<TModel, bool>> expression, bool idDest = true, bool compileSp = false)
         {
-            DBExtend db = DBExtend;
+            AbsDBExtend db = DBExtend;
             return db.QueryItem<TModel>(expression, idDest, compileSp);
-        }
-        #endregion
-
-        #region 删除
-        /// <summary>
-        /// 按主键删除
-        /// </summary>
-        /// <param name="id"></param>
-        /// <returns></returns>
-        public int Delete(object id)
-        {
-            var db = DBExtend;
-            var filed = TypeCache.GetTable(typeof(TModel)).PrimaryKey;
-            string where = string.Format("{0}=@{0}", filed.Name);
-            db.AddParam(filed.Name, id);
-            return db.Delete<TModel>(where);
-        }
-
-        /// <summary>
-        /// 按条件删除[基本方法]
-        /// </summary>
-        /// <param name="expression"></param>
-        /// <returns></returns>
-        public int Delete(Expression<Func<TModel, bool>> expression)
-        {
-            DBExtend db = DBExtend;
-            int n = db.Delete<TModel>(expression);
-            return n;
         }
         #endregion
 
@@ -216,7 +290,7 @@ namespace CRL
         /// <returns></returns>
         public List<TModel> QueryList()
         {
-            DBExtend db = GetDbHelper();//避开事务控制,使用新的连接
+            AbsDBExtend db = GetDBExtend();
             return db.QueryList<TModel>();
         }
         /// <summary>
@@ -227,7 +301,7 @@ namespace CRL
         /// <returns></returns>
         public List<TModel> QueryList(Expression<Func<TModel, bool>> expression, bool compileSp = false)
         {
-            DBExtend db = GetDbHelper();//避开事务控制,使用新的连接
+            AbsDBExtend db = GetDBExtend();
             return db.QueryList<TModel>(expression, compileSp);
         }
         /**
@@ -263,6 +337,63 @@ namespace CRL
             return db.QueryDynamic<TModel, TResult>(query);
         }
         **/
+        #endregion
+
+        #region 删除
+        /// <summary>
+        /// 按主键删除
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        public int Delete(object id)
+        {
+            var db = DBExtend;
+            return db.Delete<TModel>(id);
+        }
+        /// <summary>
+        /// 按对象主键删除
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
+        public int Delete(IModel obj)
+        {
+            var db = DBExtend;
+            var v = obj.GetpPrimaryKeyValue();
+            return db.Delete<TModel>(v);
+        }
+        /// <summary>
+        /// 按条件删除[基本方法]
+        /// </summary>
+        /// <param name="expression"></param>
+        /// <returns></returns>
+        public int Delete(Expression<Func<TModel, bool>> expression)
+        {
+            AbsDBExtend db = DBExtend;
+            int n = db.Delete<TModel>(expression);
+            return n;
+        }
+        /// <summary>
+        /// 按完整查询删除
+        /// </summary>
+        /// <param name="query"></param>
+        /// <returns></returns>
+        public int Delete(LambdaQuery<TModel> query)
+        {
+            AbsDBExtend db = DBExtend;
+            int n = db.Delete(query);
+            return n;
+        }
+        /// <summary>
+        /// 关联删除
+        /// </summary>
+        /// <typeparam name="TJoin"></typeparam>
+        /// <param name="expression"></param>
+        /// <returns></returns>
+        public int Delete<TJoin>(Expression<Func<TModel, TJoin, bool>> expression)
+            where TJoin : IModel, new()
+        {
+            return DBExtend.Delete(expression);
+        }
         #endregion
 
         #region 分页
@@ -314,7 +445,7 @@ namespace CRL
         /// <returns></returns>
         public int Update(TModel item)
         {
-            DBExtend db = DBExtend;
+            AbsDBExtend db = DBExtend;
             return db.Update(item);
         }
 
@@ -326,7 +457,7 @@ namespace CRL
         /// <returns></returns>
         public int Update(Expression<Func<TModel, bool>> expression, TModel model)
         {
-            DBExtend db = DBExtend;
+            AbsDBExtend db = DBExtend;
             int n = db.Update<TModel>(expression, model);
             return n;
         }
@@ -338,7 +469,7 @@ namespace CRL
         /// <returns></returns>
         public int Update(Expression<Func<TModel, bool>> expression, ParameCollection setValue)
         {
-            DBExtend db = DBExtend;
+            AbsDBExtend db = DBExtend;
             int n = db.Update<TModel>(expression, setValue);
             return n;
         }
@@ -355,6 +486,32 @@ namespace CRL
             int n = db.Update<TModel>(expression, updateValue);
             return n;
         }
+        /// <summary>
+        /// 按完整查询条件更新
+        /// </summary>
+        /// <param name="query"></param>
+        /// <param name="updateValue">要按字段值更新,需加前辍$ 如 c["UserId"] = "$UserId"</param>
+        /// <returns></returns>
+        public int Update(LambdaQuery<TModel> query, ParameCollection updateValue)
+        {
+            var db = DBExtend;
+            return db.Update(query, updateValue);
+        }
+        /// <summary>
+        /// 关联更新
+        /// </summary>
+        /// <typeparam name="TJoin"></typeparam>
+        /// <param name="expression"></param>
+        /// <param name="updateValue">要按字段值更新,需加前辍$ 如 c["UserId"] = "$UserId"</param>
+        /// <returns></returns>
+        public int Update<TJoin>(Expression<Func<TModel, TJoin, bool>> expression, ParameCollection updateValue)
+            where TJoin : IModel, new()
+        {
+            return DBExtend.Update(expression, updateValue);
+            //var query = GetLambdaQuery();
+            //query.Join<TJoin>(expression);
+            //return Update(query, updateValue);
+        }
         #endregion
 
         #region 格式化命令查询
@@ -369,7 +526,7 @@ namespace CRL
         /// <returns></returns>
         protected List<T> ExecListWithFormat<T>(string sql, ParameCollection parame, params Type[] types) where T : class, new()
         {
-            DBExtend db = DBExtend;
+            AbsDBExtend db = DBExtend;
             foreach (var p in parame)
             {
                 db.AddParam(p.Key, p.Value);
@@ -385,7 +542,7 @@ namespace CRL
         /// <returns></returns>
         protected int ExecuteWithFormat(string sql, ParameCollection parame, params Type[] types)
         {
-            DBExtend db = DBExtend;
+            AbsDBExtend db = DBExtend;
             foreach (var p in parame)
             {
                 db.AddParam(p.Key, p.Value);
@@ -401,7 +558,7 @@ namespace CRL
         /// <returns></returns>
         protected T ExecScalarWithFormat<T>(string sql, ParameCollection parame, params Type[] types)
         {
-            DBExtend db = DBExtend;
+            AbsDBExtend db = DBExtend;
             foreach (var p in parame)
             {
                 db.AddParam(p.Key, p.Value);
@@ -448,7 +605,7 @@ namespace CRL
         /// <returns></returns>
         public int Count(Expression<Func<TModel, bool>> expression, bool compileSp = false)
         {
-            DBExtend db = GetDbHelper();//避开事务控制,使用新的连接
+            AbsDBExtend db = GetDBExtend();
             return db.Count<TModel>(expression, compileSp);
         }
         /// <summary>
@@ -461,7 +618,7 @@ namespace CRL
         /// <returns></returns>
         public TType Sum<TType>(Expression<Func<TModel, bool>> expression, Expression<Func<TModel, TType>> field, bool compileSp = false)
         {
-            DBExtend db = GetDbHelper();//避开事务控制,使用新的连接
+            AbsDBExtend db = GetDBExtend();
             return db.Sum<TType, TModel>(expression, field, compileSp);
         }
         /// <summary>
@@ -474,7 +631,7 @@ namespace CRL
         /// <returns></returns>
         public TType Max<TType>(Expression<Func<TModel, bool>> expression, Expression<Func<TModel, TType>> field, bool compileSp = false)
         {
-            DBExtend db = GetDbHelper();//避开事务控制,使用新的连接
+            AbsDBExtend db = GetDBExtend();
             return db.Max<TType, TModel>(expression, field, compileSp);
         }
         /// <summary>
@@ -487,40 +644,82 @@ namespace CRL
         /// <returns></returns>
         public TType Min<TType>(Expression<Func<TModel, bool>> expression, Expression<Func<TModel, TType>> field, bool compileSp = false)
         {
-            DBExtend db = GetDbHelper();//避开事务控制,使用新的连接
+            AbsDBExtend db = GetDBExtend();
             return db.Min<TType, TModel>(expression, field, compileSp);
         }
         #endregion
 
+        /// <summary>
+        /// 将方法调用打包,使只用一个数据连接
+        /// 同CRLDbConnectionScope
+        /// </summary>
+        /// <param name="action"></param>
+        public void PackageMethod(Action action)
+        {
+            using (var context = new CRLDbConnectionScope())
+            {
+                try
+                {
+                    action();
+                }
+                catch(Exception ero)
+                {
+                    context.Dispose();
+                    throw ero;
+                }
+            }
+        }
         #region 包装为事务执行
         /// <summary>
-        /// 使用DbTransaction封装事务(不推荐)
+        /// 使用DbTransaction封装事务,不能跨库
+        /// 请将数据访问对象写在方法体内
+        /// 可嵌套调用
         /// </summary>
-        /// <param name="db"></param>
         /// <param name="method"></param>
         /// <param name="error"></param>
         /// <returns></returns>
-        public bool PackageTrans2(DBExtend db, TransMethod method, out string error)
+        public bool PackageTrans2(TransMethod method, out string error)
         {
             error = "";
-            db.BeginTran();
-            try
+            var _useCRLContext = CallContext.GetData<bool>(Base.UseCRLContextFlagName);//事务已开启,内部事务不用处理
+            using (var context = new CRLDbConnectionScope())
             {
-                var a = method(out error);
-                if (!a)
+                var db = GetDBExtend(true);
+                if (!_useCRLContext)
                 {
-                    db.RollbackTran();
+                    db.BeginTran();
+                }
+                bool result;
+                try
+                {
+                    result = method(out error);
+                    if (!_useCRLContext)
+                    {
+                        if (!result)
+                        {
+                            db.RollbackTran();
+                            CallContext.SetData(Base.UseCRLContextFlagName, false);
+                            return false;
+                        }
+                        db.CommitTran();
+                    }
+                }
+                catch (Exception ero)
+                {
+                    error = "提交事务时发生错误:" + ero.Message;
+                    if (!_useCRLContext)
+                    {
+                        db.RollbackTran();
+                        CallContext.SetData(Base.UseCRLContextFlagName, false);
+                    }
                     return false;
                 }
-                db.CommitTran();
+                if (!_useCRLContext)
+                {
+                    CallContext.SetData(Base.UseCRLContextFlagName, false);
+                }
+                return result;
             }
-            catch (Exception ero)
-            {
-                error = "提交事务时发生错误:" + ero.Message;
-                db.RollbackTran();
-                return false;
-            }
-            return true;
         }
         /// <summary>
         /// 使用TransactionScope封装事务[基本方法]
@@ -551,5 +750,13 @@ namespace CRL
             return true;
         }
         #endregion
+    }
+
+    public interface IProvider
+    {
+        /// <summary>
+        /// 绑定对象类型
+        /// </summary>
+        Type ModelType { get; }
     }
 }

@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V3.1
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,16 +13,20 @@ using System.Reflection;
 using System.Data;
 namespace CRL.Package.Category
 {
-    /// <summary>
-    /// 分类维护
-    /// </summary>
-    public class CategoryBusiness<TType,TModel> : BaseProvider<TModel> where TType : class
-        where TModel : Category,new()
+    public class CategoryBusiness<TType, TModel> : CategoryBusiness<TModel>
+        where TModel : Category, new()
     {
         public static CategoryBusiness<TType, TModel> Instance
         {
             get { return new CategoryBusiness<TType, TModel>(); }
         }
+    }
+    /// <summary>
+    /// 分类维护
+    /// </summary>
+    public class CategoryBusiness<TModel> : BaseProvider<TModel>
+        where TModel : Category,new()
+    {
 
         public IEnumerable<TModel> GetAllCache(int dataType)
         {
@@ -23,7 +34,7 @@ namespace CRL.Package.Category
         }
         public string MakeNewCode(string parentSequenceCode, TModel category)
         {
-            DBExtend helper = DBExtend;
+            var helper = DBExtend;
             string newCode = parentSequenceCode + "";
             #region 生成新编码
 
@@ -56,13 +67,12 @@ namespace CRL.Package.Category
         /// <returns></returns>
         public TModel Add(string parentSequenceCode, TModel category)
         {
-            DBExtend helper = DBExtend;
+            var helper = DBExtend;
             string newCode = MakeNewCode(parentSequenceCode, category);
             //helper.Clear();
             category.SequenceCode = newCode;
             category.ParentCode = parentSequenceCode;
-            int id = helper.InsertFromObj( category);
-            category.Id = id;
+            helper.InsertFromObj( category);
             //ClearCache();
             return category;
         }

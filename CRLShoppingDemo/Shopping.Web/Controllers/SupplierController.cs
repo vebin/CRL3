@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V3.1
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -59,7 +66,8 @@ namespace Shopping.Web.Controllers
         {
             var query = ProductManage.Instance.GetLambdaQuery();
             query.Where(b => b.SupplierId == CurrentUser.Id);
-
+            query.Page(pageSize, page);
+            query.OrderBy(b => b.Id, false);
             var result = query.ToList();
             int count = query.RowCount;
             var pageObj = new PageObj<Product>(result, page, count, pageSize);
@@ -80,6 +88,11 @@ namespace Shopping.Web.Controllers
             product.Change(b => b.SoldPrice);
             product.Change(b => b.ProductStatus);
             ProductManage.Instance.Update(product);
+            return RedirectToAction("Product");
+        }
+        public ActionResult ProductDelete(int id)
+        {
+            ProductManage.Instance.Delete(id);
             return RedirectToAction("Product");
         }
     }

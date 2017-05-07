@@ -1,4 +1,11 @@
-﻿using CRL.Sharding.DB;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using CRL.Sharding.DB;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -38,7 +45,7 @@ namespace CRL.Sharding
             var db = _DataBase.Find(b => mainDataIndex >= b.MainDataStartIndex && mainDataIndex <= b.MainDataEndIndex);
             if (db == null)//找属于哪个库
             {
-                throw new Exception("找不到指定的库,在主数据索引:" + mainDataIndex);
+                throw new CRLException("找不到指定的库,在主数据索引:" + mainDataIndex);
             }
             return db;
         }
@@ -54,7 +61,7 @@ namespace CRL.Sharding
             var table = _Table.Find(b => b.TableName == tableName && b.DataBaseName == db.Name);
             if (table == null)//找哪个表
             {
-                throw new Exception(string.Format("找不到指定的表{1}在库{0}", db.Name, tableName));
+                throw new CRLException(string.Format("找不到指定的表{1}在库{0}", db.Name, tableName));
             }
             TablePart part;
             //找分表
@@ -68,7 +75,7 @@ namespace CRL.Sharding
             }
             if (part == null)
             {
-                throw new Exception(string.Format("找不到指定的表{1}在库{0}", db.Name, tableName));
+                throw new CRLException(string.Format("找不到指定的表{1}在库{0}", db.Name, tableName));
             }
             return new Location() { DataBase = db, TablePart = part };
         }

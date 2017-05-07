@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V3.1
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -72,24 +79,6 @@ namespace Core.Mvc
                 return CRL.Package.RoleAuthorize.EmployeeBusiness.CurrentUser;
             }
         }
-
-        /// <summary>
-        /// 检测重复提交表单
-        /// </summary>
-        /// <param name="tokenName"></param>
-        public void CheckDuplicateSubmit(string tokenName = "PageToken")
-        {
-            var key = Request[tokenName];
-            if (string.IsNullOrEmpty(key))
-            {
-                return;
-            }
-            string concurrentKey = "submitRepeatedCheck_" + key;
-            if (!CoreHelper.ConcurrentControl.Check(concurrentKey, 10))
-            {
-                throw new Exception("请不要重复提交表单");
-            }
-        }
         #region 访问权限控制
         /// <summary>
         /// 检测菜单访问权限
@@ -110,7 +99,7 @@ namespace Core.Mvc
             string message;
             if (menu == null)
             {
-                message = string.Format("没有权限进行此操作,请联系管理员分配权限 \n地址:[{0}]",Request.Path);
+                message = string.Format("没有权限进行此操作,请联系管理员分配权限 \n地址:[{0}]", Request.Path);
             }
             else
             {
@@ -123,6 +112,24 @@ namespace Core.Mvc
             return PageContent("没有权限", message);
         }
         #endregion
+        /// <summary>
+        /// 检测重复提交表单
+        /// </summary>
+        /// <param name="tokenName"></param>
+        public void CheckDuplicateSubmit(string tokenName = "PageToken")
+        {
+            var key = Request[tokenName];
+            if (string.IsNullOrEmpty(key))
+            {
+                return;
+            }
+            string concurrentKey = "submitRepeatedCheck_" + key;
+            if (!CoreHelper.ConcurrentControl.Check(concurrentKey, 10))
+            {
+                throw new Exception("请不要重复提交表单");
+            }
+        }
+        #region 自定义Result
         /// <summary>
         /// 自动返回上一页
         /// </summary>
@@ -246,53 +253,209 @@ setTimeout('goUrl()', 3300)</script>";
         {
             return JsonResult(result, message, "");
         }
+        #endregion
 
-        protected ActionResult DecryptImg(string file)
+        #region 图片上传
+        /// <summary>
+        /// 上传最大高度
+        /// </summary>
+        protected int _MaxUploadHeight = 2048;
+        /// <summary>
+        /// 上传最大宽度
+        /// </summary>
+        protected int _MaxUploadWidth = 2048;
+        /// <summary>
+        /// 上传文件大小KB
+        /// </summary>
+        protected int _MaxUploadSize = 2048;
+        protected ActionResult _UploadImageView(bool multiple, string folder, string uploadType)
         {
-            if (string.IsNullOrEmpty(file))
+            string html = Properties.Resources.upload;
+            html = html.Replace("[addFile]", multiple ? "<input type='button' onclick='add()' value='增加' />" : "");
+            html = html.Replace("[folder]", folder);
+            html = html.Replace("[uploadType]", uploadType);
+            return Content(html);
+        }
+        /// <summary>
+        /// 上传图片方法
+        /// 使用服务需配置服务地址
+        /// </summary>
+        /// <param name="postFile"></param>
+        /// <param name="folder"></param>
+        /// <param name="saveFile"></param>
+        /// <param name="error"></param>
+        /// <returns></returns>
+        protected bool _UploadImage(HttpPostedFileBase postFile, string folder,out string saveFile, out string error)
+        {
+            var useService = CoreHelper.CustomSetting.GetConfigKey("uploadUseService") == "1";
+            //string saveFile;
+            bool a;
+            var stream = postFile.InputStream;
+            string fileName = postFile.FileName;
+            if (useService)
             {
-                //Response.StatusCode = 500;
-                return Content("缺少参数");
+                var u = new CoreHelper.ImageUpload.UploadService();
+                u.MaxWidth = _MaxUploadWidth;
+                u.MaxHeight = _MaxUploadHeight;
+                u.MaxSize = _MaxUploadSize;
+                a = u.UploadFile(stream, fileName, out saveFile, out error);
             }
-            string path = file.Replace("/", @"\");
-            if (!path.StartsWith(@"\"))
+            else
             {
-                path = @"\" + path;
+                CoreHelper.ImageUpload.Upload.MaxWidth = _MaxUploadWidth;
+                CoreHelper.ImageUpload.Upload.MaxHeight = _MaxUploadHeight;
+                CoreHelper.ImageUpload.Upload.MaxSize = _MaxUploadSize;
+                a = CoreHelper.ImageUpload.Upload.CheckFile(stream, postFile.FileName, out error);
+                if (!a)
+                {
+                    saveFile = "";
+                    return false;
+                }
+                byte[] data = new byte[stream.Length];
+                stream.Read(data, 0, data.Length);
+                a = CoreHelper.ImageUpload.Upload.SaveFile(data, folder, 0, out error, out saveFile);
             }
-            string path2 = CoreHelper.ImageUpload.Upload.BaseFolder + path;
-            System.Drawing.Image bmp = null;
-            try
+            return a;
+        }
+        /// <summary>
+        /// 生成缩略图方法
+        /// </summary>
+        /// <param name="file"></param>
+        /// <param name="thumbnailMode"></param>
+        protected void MakeThumbImage(string file, params int[] thumbnailMode)
+        {
+            var useService = CoreHelper.CustomSetting.GetConfigKey("uploadUseService") == "1";
+            if (useService)
             {
-                bmp = CoreHelper.ImageUpload.FileEncrypt.DecryptImg(path2);
+                var u = new CoreHelper.ImageUpload.UploadService();
+                u.MakeThumbImage(file, thumbnailMode);
             }
-            catch
+            else
             {
-                //Response.StatusCode = 404;
-                return Content("没找到文件");
+                CoreHelper.ImageUpload.Upload.MakeThumbImage(file, thumbnailMode);
             }
-            Bitmap bmp2 = new Bitmap(bmp);
-            MemoryStream ms = new MemoryStream();
-            try
+        }
+        #endregion
+
+        #region 控制台
+        #region 缓存管理
+        /// <summary>
+        /// 缓存管理
+        /// </summary>
+        /// <param name="key"></param>
+        /// <returns></returns>
+        public virtual ActionResult _CacheManage(string key = "")
+        {
+            if (!Request.Path.ToLower().StartsWith("/sys/"))
             {
-                bmp2.Save(ms, System.Drawing.Imaging.ImageFormat.Jpeg);
-                Response.ClearContent();
-                Response.ContentType = "image/Jpeg";
-                Response.BinaryWrite(ms.ToArray());
+                return Content("access /sys/_CacheManage");
             }
-            catch (Exception ero)
+            string html = "<h2>缓存管理</h2>";
+            html += "<a href='_ModelManage'>对象管理</a>";
+            if (!string.IsNullOrEmpty(key))
             {
-                //Response.StatusCode = 500;
-                return Content(ero.Message);
+                var a = CRL.MemoryDataCache.CacheService.UpdateCache(key);
+                html += "<h4 style='color:red'>更新缓存" + a + " " + DateTime.Now + "</h4>";
             }
-            finally
+            var caches = CRL.MemoryDataCache.CacheService.GetCacheList();
+            html += @"
+<table border='1' style='width:100%'>
+    <tr>
+        <td style='width:40px'>操作</td>
+        <td>KEY</td>
+        <td>数据类型</td>
+        <td>行数</td>
+        <td>过期(分)</td>
+        <td>上次更新</td>
+        <td style='width:200px'>查询</td>
+        <td style='width:100px'>参数</td>
+
+    </tr>";
+            foreach (var item in caches)
             {
-                bmp.Dispose();
-                //显式释放资源
-                bmp2.Dispose();
-                ms.Dispose();
+                string part = @"<tr>
+                <td><a href='?key={0}'>更新</a></td>
+        <td>{0}</td>
+        <td>{1}[{7}]</td>
+        <td>{2}</td>
+        <td>{3}</td>
+        <td>{4}</td>
+        <td>{5}</td>
+        <td>{6}</td>
+
+    </tr>";
+                part = string.Format(part, item.Key, item.DataType,item.RowCount, item.TimeOut, item.UpdateTime, item.TableName, item.Params,item.DatabaseName);
+                html += part;
             }
+
+            html += "</table>";
+
+            return Content(html);
+        }
+        #endregion
+
+        #region 对象检查
+        /// <summary>
+        /// 重写以获取结构检查对象程序集
+        /// </summary>
+        /// <returns></returns>
+        protected virtual Type CRLModelTypeForCheck()
+        {
             return null;
         }
+        public virtual ActionResult _ModelManage(string chkType="")
+        {
+            if (!Request.Path.ToLower().StartsWith("/sys/"))
+            {
+                return Content("access /sys/_ModelManage");
+            }
+            var currentType = CRLModelTypeForCheck();
+            string html = @"<h2>对象管理</h2>";
+            html += "<a href='_CacheManage'>缓存管理</a>";
+            if (currentType == null)
+            {
+                return Content("请重写CRLModelTypeForCheck以获取反射的MODEL");
+            }
+            var findTypes = CRL.Base.GetAllModel(currentType);
+            if (!string.IsNullOrEmpty(chkType))
+            {
+                var find = findTypes.Keys.Where(b => b.Type.FullName == chkType).FirstOrDefault();
+                if (find != null)
+                {
+                    var db = findTypes[find];
+                    object obj = System.Activator.CreateInstance(find.Type);
+                    CRL.IModel b = obj as CRL.IModel;
+                    var msg = b.CreateTable(db);
+                    html += "<h4 style='color:red'>检查结构" + find.Type + "" + (string.IsNullOrEmpty(msg) ? "成功" : msg) + "</h4>";
+                }
+            }
+            html += @"
+<table border='1' style=''>
+    <tr>
+        <td>名称</td>
+        <td>表名</td>
+        <td>主键</td>
+        <td width='40'>操作</td>
+    </tr>";
+            foreach (var kv in findTypes)
+            {
+                var item = kv.Key;
+                string part = @"<tr>
+        <td>{0}</td>
+        <td>{1}</td>
+<td>{2}</td>
+        <td><a href='?chkType={0}'>检查结构</a></td>
+    </tr>";
+                var primaryKey = item.GetPrimaryKey();
+
+                part = string.Format(part, item.Type.FullName, item.TableName, primaryKey.GetMemberName() + "(" + primaryKey.PropertyType + ")");
+                html += part;
+            }
+            return Content(html);
+        }
+        #endregion
+        #endregion
+
 
     }
 }

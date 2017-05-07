@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V3.1
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Web;
 using System.Net;
@@ -338,7 +345,20 @@ namespace CRL.Package.OnlinePay.Company.Weixin
 		    return result;
 	    }
 
+        public static WxPayData GetAPPPayData(string prepayid)
+        {
+            var inputObj = new WxPayData();
 
+            inputObj.SetValue("appid", WxPayConfig.APPID);//公众账号ID
+            inputObj.SetValue("partnerid", WxPayConfig.MCHID);//商户号  	    
+            inputObj.SetValue("noncestr", GenerateNonceStr());//随机字符串
+            inputObj.SetValue("prepayid", prepayid);
+            inputObj.SetValue("package", "Sign=WXPay");
+            inputObj.SetValue("timestamp", GenerateTimeStamp());
+            //签名
+            inputObj.SetValue("sign", inputObj.MakeSign());
+            return inputObj;
+        }
         /**
         * 
         * 统一下单

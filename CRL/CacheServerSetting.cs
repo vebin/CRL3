@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,7 +18,7 @@ namespace CRL
         internal static List<string> ServerTypeSetting = new List<string>();
         internal static Dictionary<string, ExpressionDealDataHandler> CacheServerDealDataRules = new Dictionary<string, ExpressionDealDataHandler>();
         /// <summary>
-        /// 清加数据处理规则
+        /// 服务端清加数据处理规则
         /// </summary>
         /// <param name="type"></param>
         /// <param name="handler"></param>
@@ -27,11 +34,11 @@ namespace CRL
         internal static List<CacheServer.CacheClientProxy> CacheClientProxies = new List<CacheServer.CacheClientProxy>();
         internal static Dictionary<string, CacheServer.CacheClientProxy> ServerTypeSettings = new Dictionary<string, CacheServer.CacheClientProxy>();
         /// <summary>
-        /// 添加TCP客户端代理
+        /// 添加服务端监听
         /// </summary>
         /// <param name="host"></param>
         /// <param name="port"></param>
-        public static void AddClientProxy(string host, int port)
+        public static void AddTcpServerListen(string host, int port)
         {
             var client = new CRL.CacheServer.TcpPoolClient(host, port);
             CacheClientProxies.Add(client);
@@ -46,6 +53,9 @@ namespace CRL
                 p.GetServerTypeSetting();
             }
         }
+        /// <summary>
+        /// 释放客户端连接
+        /// </summary>
         public static void Dispose()
         {
             foreach (var p in CacheClientProxies)
@@ -61,7 +71,7 @@ namespace CRL
                 return ServerTypeSettings[typeName];
             }
             return null;
-            //throw new Exception("未在服务器上找到对应的数据处理类型;" + typeName);
+            //throw new CRLException("未在服务器上找到对应的数据处理类型;" + typeName);
         }
     }
 }

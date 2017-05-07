@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -11,18 +18,27 @@ namespace WebTest
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-           
         }
 
         protected void Button1_Click(object sender, EventArgs e)
         {
-            //查询一项
-            var item = Code.ProductDataManage.Instance.QueryItem(b => b.Id > 0 && b.Number == 0);
-            var list = new List<object>(); 
-            
-            if(item!=null)
+            var a = true;
+            var list = new List<object>();
+            //使用同一个数据连接
+            Code.ProductDataManage.Instance.PackageMethod(() =>
             {
-                list.Add(item);
+                var item = Code.ProductDataManage.Instance.QueryItem(2);
+                var item2 = Code.ProductDataManage.Instance.QueryItem(2);
+            });
+            //查询一项
+            using (var context = new CRL.CRLDbConnectionScope())//使用同一个数据连接
+            {
+                var item = Code.ProductDataManage.Instance.QueryItem(b => b.Id > 0 || b.IsTop == a);
+                var item2 = Code.ProductDataManage.Instance.QueryItem(2);
+                if (item != null)
+                {
+                    list.Add(item);
+                }
             }
             GridView1.DataSource = list;
             GridView1.DataBind();

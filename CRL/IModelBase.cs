@@ -1,9 +1,17 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Reflection;
 using System.Dynamic;
+using Newtonsoft.Json;
 
 namespace CRL
 {
@@ -48,7 +56,7 @@ namespace CRL
     /// </summary>
     [Serializable]
     //[Attribute.ModelProxy]
-    public abstract class IModel : ICloneable
+    public abstract class IModel 
     {
         /// <summary>
         /// 序列化为JSON
@@ -60,6 +68,14 @@ namespace CRL
         }
 
         #region 方法重写
+        /// <summary>
+        /// ToJson
+        /// </summary>
+        /// <returns></returns>
+        public override string ToString()
+        {
+            return "[" + GetType().FullName + "] " + ToJson();
+        }
         /// <summary>
         /// 数据校验方法,可重写
         /// </summary>
@@ -86,13 +102,21 @@ namespace CRL
             return null;
         }
         #endregion
-
+        /// <summary>
+        /// 手动跟踪对象状态,使更新时能识别
+        /// </summary>
+        public void BeginTracking()
+        {
+            OriginClone = Clone();
+            Changes = new ParameCollection();
+        }
 
         /// <summary>
         /// 是否检查重复插入,默认为true
         /// 判断重复为相同的属性值,AddTime除外,3秒内唯一
         /// </summary>
         [System.Xml.Serialization.XmlIgnore]
+        [JsonIgnore]
         protected internal virtual bool CheckRepeatedInsert
         {
             get
@@ -104,7 +128,7 @@ namespace CRL
 
         [System.Xml.Serialization.XmlIgnore]
         [NonSerialized]
-        Dictionary<string, dynamic> Datas = new Dictionary<string, dynamic>();
+        Dictionary<string, object> Datas = null;
 
 
         /// <summary>
@@ -119,228 +143,32 @@ namespace CRL
             get
             {
                 dynamic obj = null;
+                Datas = Datas ?? new Dictionary<string, object>();
                 var a = Datas.TryGetValue(key.ToLower(), out obj);
                 if (!a)
                 {
-                    throw new Exception(string.Format("对象:{0}不存在索引值:{1}", GetType(), key));
+                    throw new CRLException(string.Format("对象:{0}不存在索引值:{1}", GetType(), key));
                 }
                 return obj;
             }
             set
             {
+                Datas = Datas ?? new Dictionary<string, object>();
                 Datas[key.ToLower()] = value;
             }
         }
+        /// <summary>
+        /// 设置索引值
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        public void SetIndexData(string key, object value)
+        {
+            Datas = Datas ?? new Dictionary<string, object>();
+            Datas[key.ToLower()] = value;
+        }
         #endregion
 
-        #region 检查表
-        /// <summary>
-        /// 检查索引
-        /// </summary>
-        /// <param name="db"></param>
-        /// <returns></returns>
-        internal void CheckIndexExists(DBExtend db)
-        {
-            var list = GetIndexScript(db);
-            foreach (var item in list)
-            {
-                try
-                {
-                    db.Execute(item);
-                }
-                catch (Exception ero)//出错,
-                {
-                    CoreHelper.EventLog.Log(string.Format("创建索引失败:{0}\r\n{1}", ero.Message, item));
-                }
-            }
-        }
-        /// <summary>
-        /// 创建列
-        /// </summary>
-        /// <param name="db"></param>
-        /// <param name="item"></param>
-        /// <returns></returns>
-        internal static string CreateColumn(DBExtend db, Attribute.FieldAttribute item)
-        {
-            var dbAdapter = db._DBAdapter;
-            string result = "";
-            if (string.IsNullOrEmpty(item.ColumnType))
-            {
-                throw new Exception("ColumnType is null");
-            }
-            string str = dbAdapter.GetCreateColumnScript(item);
-            string indexScript = "";
-            if (item.FieldIndexType != Attribute.FieldIndexType.无)
-            {
-                indexScript = dbAdapter.GetColumnIndexScript(item);
-            }
-            try
-            {
-                db.Execute(str);
-                if (!string.IsNullOrEmpty(indexScript))
-                {
-                    db.Execute(indexScript);
-                }
-                result = string.Format("创建字段:{0} {1} {2}\r\n", item.TableName, item.Name,item.PropertyType);
-                var model = System.Activator.CreateInstance(item.ModelType) as IModel;
-                try
-                {
-                    model.OnColumnCreated(item.Name);
-                }
-                catch(Exception ero)
-                {
-                    result = string.Format("添加字段:{0} {1},升级数据时发生错误:{2}\r\n", item.TableName, item.Name, ero.Message);
-                }
-                CoreHelper.EventLog.Log(result, "", false);
-            }
-            catch (Exception ero)
-            {
-                //CoreHelper.EventLog.Log("创建字段时发生错误:" + ero.Message);
-                result = string.Format("创建字段:{0} {1}发生错误:{2}\r\n", item.TableName, item.Name, ero.Message);
-            }
-            return result;
-        }
-        /// <summary>
-        /// 检查对应的字段是否存在,不存在则创建
-        /// </summary>
-        /// <param name="db"></param>
-        internal string CheckColumnExists(DBExtend db)
-        {
-            string result = "";
-            var dbAdapter = db._DBAdapter;
-            List<Attribute.FieldAttribute> columns = GetColumns(dbAdapter);
-            string tableName = TypeCache.GetTableName(this.GetType(),db.dbContext);
-            foreach (Attribute.FieldAttribute item in columns)
-            {
-                string sql = dbAdapter.GetSelectTop(item.KeyWordName, "from " + tableName, "", 1);
-                try
-                {
-                    db.Execute(sql);
-                }
-                catch//出错,按没有字段算
-                {
-                    result += CreateColumn(db, item);
-                    
-                }
-            }
-            return result;
-        }
-        internal static void SetColumnDbType(DBAdapter.DBAdapterBase dbAdapter, Attribute.FieldAttribute info)
-        {
-            if (info.FieldType != Attribute.FieldType.数据库字段)
-            {
-                return ;
-            }
-            string defaultValue;
-            Type propertyType = info.PropertyType;
-            var columnType = dbAdapter.GetColumnType(info, out defaultValue);
-            info.ColumnType = columnType;
-            info.DefaultValue = defaultValue;
-            if (info.ColumnType.Contains("{0}"))
-            {
-                throw new Exception(string.Format("属性:{0} 需要指定长度 ColumnType:{1}", info.Name, info.ColumnType));
-            }
-        }
-        /// <summary>
-        /// 获取列
-        /// </summary>
-        /// <returns></returns>
-        List<Attribute.FieldAttribute> GetColumns(DBAdapter.DBAdapterBase dbAdapter)
-        {
-            //var dbAdapter = Base.CurrentDBAdapter;
-            Type type = this.GetType();
-            string tableName = TypeCache.GetTableName(type,dbAdapter.dbContext);
-            var typeArry = TypeCache.GetProperties(type, true).Values;
-            var columns = new List<CRL.Attribute.FieldAttribute>();
-            foreach (var info in typeArry)
-            {
-                if (info.FieldType == Attribute.FieldType.虚拟字段)
-                    continue;
-                SetColumnDbType(dbAdapter, info);
-                columns.Add(info);
-            }
-            return columns;
-        }
-        internal List<string> GetIndexScript(DBExtend db)
-        {
-            var dbAdapter = db._DBAdapter;
-            List<string> list2 = new List<string>();
-            List<Attribute.FieldAttribute> columns = GetColumns(dbAdapter);
-            foreach (Attribute.FieldAttribute item in columns)
-            {
-                if (item.FieldIndexType != Attribute.FieldIndexType.无)
-                {
-                    //string indexScript = string.Format("CREATE {2} NONCLUSTERED INDEX  IX_INDEX_{0}_{1}  ON dbo.[{0}]({1})", tableName, item.Name, item.FieldIndexType == Attribute.FieldIndexType.非聚集唯一 ? "UNIQUE" : "");
-                    string indexScript = dbAdapter.GetColumnIndexScript(item);
-                    list2.Add(indexScript);
-                }
-            }
-            return list2;
-        }
-
-        /// <summary>
-        /// 创建表
-        /// </summary>
-        /// <param name="db"></param>
-        /// <returns></returns>
-        public string CreateTable(DBExtend db)
-        {
-            string msg;
-            CreateTable(db, out msg);
-            return msg;
-        }
-        /// <summary>
-        /// 创建表
-        /// 会检查表是否存在,如果存在则检查字段
-        /// </summary>
-        /// <param name="db"></param>
-        /// <param name="message"></param>
-        /// <returns></returns>
-        internal bool CreateTable(DBExtend db, out string message)
-        {
-            var dbAdapter = db._DBAdapter;
-            message = "";
-            //TypeCache.SetDBAdapterCache(GetType(),dbAdapter);
-            string tableName = TypeCache.GetTableName(GetType(),db.dbContext);
-            string sql = dbAdapter.GetSelectTop("0", "from " + tableName, "", 1);
-            bool needCreate = false;
-            try
-            {
-                //检查表是否存在
-                db.Execute(sql);
-            }
-            catch
-            {
-                needCreate = true;
-            }
-            if (needCreate)
-            {
-                List<string> list = new List<string>();
-                try
-                {
-                    List<Attribute.FieldAttribute> columns = GetColumns(dbAdapter);
-                    dbAdapter.CreateTable(columns, tableName);
-                    message = string.Format("创建表:{0}\r\n", tableName);
-                    CheckIndexExists(db);
-                    return true;
-                }
-                catch (Exception ero)
-                {
-                    message = "创建表时发生错误 类型{0} {1}\r\n";
-                    message = string.Format(message, GetType(), ero.Message);
-                    throw new Exception(message);
-                    return false;
-                }
-                CoreHelper.EventLog.Log(message, "", false);
-            }
-            else
-            {
-                message = CheckColumnExists(db);
-            }
-            return true;
-        }
-
-        #endregion
 
         #region 更新值判断
         /// <summary>
@@ -348,51 +176,20 @@ namespace CRL
         /// </summary>
         [System.Xml.Serialization.XmlIgnore]
         [NonSerialized]
-        private object _originClone = null;
-
-        [System.Xml.Serialization.XmlIgnore]
-        [Attribute.Field(MapingField = false)]
-        internal object OriginClone
-        {
-            get { return _originClone; }
-            set { _originClone = value; }
-        }
+        internal object OriginClone = null;
 
         [System.Xml.Serialization.XmlIgnore]
         [NonSerialized]
-        bool boundChange = true;
+        internal bool BoundChange = true;
 
+        /// <summary>
+        /// 存储被更改的属性
+        /// </summary>
         [System.Xml.Serialization.XmlIgnore]
-        internal bool BoundChange
-        {
-            get
-            {
-                return boundChange;
-            }
-            set
-            {
-                boundChange = value;
-            }
-        }
-        [System.Xml.Serialization.XmlIgnore]
-        [NonSerialized]
-        ParameCollection changes = new ParameCollection();
-
-        [Attribute.Field(MapingField = false)]
-        [System.Xml.Serialization.XmlIgnore]
-        internal ParameCollection Changes
-        {
-            get
-            {
-                return changes;
-            }
-            set
-            {
-                changes = value;
-            }
-        }
+        ParameCollection Changes = null;
         /// <summary>
         /// 表示值被更改了
+        /// 当更新后,将被清空
         /// </summary>
         /// <param name="name"></param>
         /// <param name="value"></param>
@@ -402,7 +199,87 @@ namespace CRL
                 return;
             if (name.ToLower() == "boundchange")
                 return;
+            Changes = Changes ?? new ParameCollection();
             Changes[name] = value;
+        }
+        ParameCollection GetChanges()
+        {
+            Changes = Changes ?? new ParameCollection();
+            return Changes;
+        }
+        /// <summary>
+        /// 清空Changes并重新Clone源对象
+        /// </summary>
+        internal void CleanChanges()
+        {
+            Changes.Clear();
+            if (SettingConfig.UsePropertyChange)
+            {
+                return;
+            }
+            OriginClone = Clone();
+        }
+        /// <summary>
+        /// 获取被修改的字段
+        /// </summary>
+        /// <returns></returns>
+        public ParameCollection GetUpdateField(bool check = true)
+        {
+            var c = new ParameCollection();
+            var fields = TypeCache.GetProperties(GetType(), true);
+            if (this.GetChanges().Count > 0)//按手动指定更改
+            {
+                foreach (var item in this.GetChanges())
+                {
+                    var key = item.Key.Replace("$", "");
+                    var f = fields[key];
+                    if (f == null)
+                        continue;
+                    if (f.IsPrimaryKey || f.FieldType != Attribute.FieldType.数据库字段)
+                        continue;
+                    var value = item.Value;
+                    //如果表示值为被追加 名称为$name
+                    //使用Cumulation扩展方法后按此处理
+                    if (key != item.Key)//按$name=name+'123123'
+                    {
+                        if (f.PropertyType == typeof(string))
+                        {
+                            value = string.Format("{0}+'{1}'", key, value);
+                        }
+                        else
+                        {
+                            value = string.Format("{0}+{1}", key, value);
+                        }
+                    }
+                    c[item.Key] = value;
+                }
+                return c;
+            }
+            //按对象对比
+            var origin = this.OriginClone;
+            if (origin == null && check)
+            {
+                throw new CRLException("_originClone为空,请确认此对象是由查询创建");
+            }
+            foreach (var f in fields.Values)
+            {
+                if (f.IsPrimaryKey)
+                    continue;
+                var originValue = f.GetValue(origin);
+                var currentValue = f.GetValue(this);
+                if (!Object.Equals(originValue, currentValue))
+                {
+                    c.Add(f.MemberName, currentValue);
+                }
+            }
+            return c;
+        }
+        /// <summary>
+        /// 对象是否被修改
+        /// </summary>
+        public bool IsModified()
+        {
+            return GetUpdateField(false).Count > 0;
         }
         #endregion
 
@@ -415,27 +292,28 @@ namespace CRL
             return MemberwiseClone();
         }
 
-        [System.Xml.Serialization.XmlIgnore]
-        [NonSerialized]
-        string modelKey = null;
-
         internal string GetModelKey()
         {
-            if (modelKey == null)
-            {
-                var type = GetType();
-                var tab = TypeCache.GetTable(type);
-                modelKey = string.Format("{0}_{1}", type, tab.PrimaryKey.GetValue(this));
-            }
+            var type = GetType();
+            var tab = TypeCache.GetTable(type);
+            var modelKey = string.Format("{0}_{1}", type, tab.PrimaryKey.GetValue(this));
             return modelKey;
         }
-        internal string GetpPrimaryKeyValue()
+        internal object GetpPrimaryKeyValue()
         {
             var primaryKey = TypeCache.GetTable(GetType()).PrimaryKey;
             var keyValue = primaryKey.GetValue(this);
-            return keyValue.ToString();
+            return keyValue;
         }
-
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="db"></param>
+        /// <returns></returns>
+        public string CreateTable(AbsDBExtend db)
+        {
+            return ModelCheck.CreateTable(GetType(), db);
+        }
         #region 动态字典,效果同索引
         private Dynamic.DynamicViewDataDictionary _dynamicViewDataDictionary;
 
@@ -444,6 +322,7 @@ namespace CRL
         /// 不区分大小写
         /// </summary>
         [System.Xml.Serialization.XmlIgnore]
+        [JsonIgnore]
         public dynamic Bag
         {
             get

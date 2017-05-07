@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,6 +19,7 @@ using System.IO.Compression;
 using CoreHelper;
 using System.Collections;
 using System.Collections.Concurrent;
+using System.Linq.Expressions;
 
 namespace CRL.MemoryDataCache
 {
@@ -22,10 +30,10 @@ namespace CRL.MemoryDataCache
     public class CacheService
     {
 
-        static Thread thread;
+        static System.Timers.Timer timer;
 
         static object lockObj = new object();
-        internal static ConcurrentDictionary<string, MemoryDataCacheItem> cacheDatas = new ConcurrentDictionary<string, MemoryDataCacheItem>();
+        static ConcurrentDictionary<string, MemoryDataCacheItem> cacheDatas = new ConcurrentDictionary<string, MemoryDataCacheItem>();
         /// <summary>
         /// 缓存类型的KEY
         /// </summary>
@@ -44,23 +52,38 @@ namespace CRL.MemoryDataCache
             return new List<string>();
         }
 
+        internal static void DeleteCacheItem<TItem>(string typeKey, string[] keys) where TItem : IModel
+        {
+            if (!cacheDatas.ContainsKey(typeKey))
+                return;
+            var data = cacheDatas[typeKey].Data as Dictionary<string, TItem>;
+            foreach (var key in keys)
+            {
+                data.Remove(key);
+            }
+        }
         /// <summary>
         /// 更新缓存中的一项
         /// </summary>
-        /// <param name="key"></param>
+        /// <param name="typeKey"></param>
         /// <param name="obj"></param>
         /// <param name="c"></param>
         /// <param name="checkInsert"></param>
-        internal static void UpdateCacheItem<TItem>(string key, TItem obj, ParameCollection c = null, bool checkInsert = false) where TItem : IModel
+        internal static void UpdateCacheItem<TItem>(string typeKey, TItem obj, ParameCollection c = null, bool checkInsert = false) where TItem : IModel
         {
             if (obj == null)
             {
-                throw new Exception("obj is null");
-            }
-            if (!cacheDatas.ContainsKey(key))
+                //throw new CRLException("obj is null");
                 return;
-            var data = cacheDatas[key].Data as Dictionary<string, TItem>;
-            var keyValue = obj.GetpPrimaryKeyValue();
+            }
+            if (!cacheDatas.ContainsKey(typeKey))
+                return;
+            var data = cacheDatas[typeKey].Data as Dictionary<string, TItem>;
+            if (data == null)
+            {
+                return;
+            }
+            var keyValue = obj.GetpPrimaryKeyValue().ToString();
             if (!data.ContainsKey(keyValue))
             {
                 if (checkInsert)
@@ -72,14 +95,16 @@ namespace CRL.MemoryDataCache
             TItem originObj = data[keyValue];
             if (c != null)//按更改的值
             {
-                var fields = TypeCache.GetProperties(obj.GetType(), false);
+                var fields = TypeCache.GetProperties(obj.GetType(), true);
+                var Reflection = ReflectionHelper.GetInfo<TItem>();
                 foreach (var f in c)
                 {
                     //var field = fields.Find(b => b.Name.ToUpper() == f.Key.ToUpper());
                     var field = fields[f.Key];
                     if (field == null)//名称带$时不更新
                         continue;
-                    field.SetValue(originObj, f.Value);
+                    //field.TupleSetValue<TItem>(originObj, f.Value);
+                    Reflection.GetAccessor(field.MemberName).Set((TItem)originObj, f.Value);
                 }
             }
             else//整体更新
@@ -94,40 +119,23 @@ namespace CRL.MemoryDataCache
                 }
             }
             //CacheUpdated(data.Type.Name);
-            string log = string.Format("更新缓存中的一项[{0}]", obj.GetModelKey());
+            string log = string.Format("更新缓存中的一项 [{0}]", obj.GetModelKey());
             CoreHelper.EventLog.Log(log, "DataCache", false);
         }
-        /// <summary>
-        /// 获取缓存
-        /// 缓存在进程重启后才失效
-        /// </summary>
-        /// <param name="qeury">表名或查询语句,存储过程前加exec </param>
-        /// <param name="timeOut">失效分钟</param>
-        /// <param name="helper">DBHelper对象,如果Params有值,则按参数缓存,慎用,会造成大量缓存</param>
-        /// <returns></returns>
-        internal static Dictionary<string, TItem> GetCacheList<TItem>(string qeury, int timeOut, DBHelper helper) where TItem : IModel, new()
-        {
-            string key = "";
-            return GetCacheList<TItem>(qeury, timeOut, helper, out key);
-        }
 
-        internal static Dictionary<string, TItem> GetCacheList<TItem>(string qeury, int timeOut, DBHelper helper, out string key) where TItem : IModel, new()
+        internal static Dictionary<string, TItem> GetCacheList<TItem>(string query, IEnumerable<Attribute.FieldMapping> mapping, int timeOut, DBHelper helper, out string key) where TItem : IModel, new()
         {
             Type type = typeof(TItem);
-            qeury = qeury.ToLower();
-            string Params = "";
-            foreach (KeyValuePair<string, object> item in helper.Params)
-            {
-                Params += item.Key + ":" + item.Value;
-            }
+            query = query.ToLower();
+            string Params = string.Join(":", helper.Params);
             //按参数进行缓存
-            key = StringHelper.EncryptMD5(qeury + Params);
+            key = StringHelper.EncryptMD5(query + Params + "|" + helper.DatabaseName);//按库名
             //初始缓存
             //lock (lockObj)
             //{
                 if (!cacheDatas.ContainsKey(key))
                 {
-                    cacheDatas.TryAdd(key, new MemoryDataCacheItem() { Data = null, TimeOut = timeOut, DBHelper = helper, Query = qeury, Params = new Dictionary<string, object>(helper.Params), Type = type });
+                    cacheDatas.TryAdd(key, new MemoryDataCacheItem() { Data = null, Mapping = mapping, TimeOut = timeOut, DBHelper = helper, Query = query, Params = new Dictionary<string, object>(helper.Params), Type = type });
                     if (typeCache.ContainsKey(type))
                     {
                         typeCache[type].Add(key);
@@ -150,16 +158,17 @@ namespace CRL.MemoryDataCache
             //首次查询
             if (dataItem.QueryCount == 0)
             {
-                var data = QueryData(key, type, qeury, helper);
+                var data = QueryData(key, type, query, mapping, helper);
                 dataItem.Data = ObjectConvert.ConvertToDictionary<TItem>(data);
                 dataItem.Count = data.Count;
                 dataItem.QueryCount = 1;
             }
 
-            if (thread == null)
+            if (timer == null)
             {
-                StarWatch();
+                //StarWatch();
             }
+            //更新缓存数据
             if (dataItem.UpdatedData != null)
             {
                 dataItem.Data = ObjectConvert.ConvertToDictionary<TItem>(dataItem.UpdatedData);
@@ -170,7 +179,7 @@ namespace CRL.MemoryDataCache
         }
 
 
-        static List<object> QueryData(string key,Type type, string query, DBHelper helper)
+        static List<object> QueryData(string key, Type type, string query, IEnumerable<Attribute.FieldMapping> mapping, DBHelper helper)
         {
             if (cacheDatas.Count > 1000)
             {
@@ -196,7 +205,10 @@ namespace CRL.MemoryDataCache
                 reader = helper.ExecDataReader(sql);
             }
             double runTime;
-            var list = ObjectConvert.DataReaderToList<object>(reader, type,out runTime, true);
+            var list = ObjectConvert.DataReaderToObjectList(reader, type, mapping, out runTime);
+            //var queryInfo = new LambdaQuery.Mapping.QueryInfo<object>(false, mapping);
+            //var list = ObjectConvert.DataReaderToIModelList2<object>(reader, queryInfo);
+
             string par = "";
             foreach (KeyValuePair<string, object> item in helper.Params)
             {
@@ -275,10 +287,12 @@ namespace CRL.MemoryDataCache
                 helper.Params = cacheItem.Params;
                 try
                 {
-                    var data = QueryData(key, cacheItem.Type, cacheItem.Query, helper);
+                    var data = QueryData(key, cacheItem.Type, cacheItem.Query, cacheItem.Mapping, helper);
+                    //将新数据放放UpdateData中, 下次调用时填入Data
                     cacheItem.UpdatedData = data;
                     cacheItem.UpdateTime = DateTime.Now;
                     cacheItem.QueryCount += 1;
+                    cacheItem.Data = null;
                     return true;
                 }
                 catch { }
@@ -300,7 +314,7 @@ namespace CRL.MemoryDataCache
                 {
                     par += item1.Key + ":" + item1.Value;
                 }
-                result.Add(new QueryItem() { TableName = item.Value.Query, Key = item.Key, Params = par, TimeOut = item.Value.TimeOut, UpdateTime = item.Value.UpdateTime, RowCount = item.Value.Count, DataType = item.Value.Type });
+                result.Add(new QueryItem() { TableName = item.Value.Query, Key = item.Key, Params = par, TimeOut = item.Value.TimeOut, UpdateTime = item.Value.UpdateTime, RowCount = item.Value.Count, DataType = item.Value.Type, DatabaseName = item.Value.DatabaseName });
             }
             return result;
         }
@@ -320,10 +334,14 @@ namespace CRL.MemoryDataCache
         /// </summary>
         public static void StarWatch()
         {
-            if (thread == null)
+            if (timer == null)
             {
-                thread = new Thread(new ThreadStart(DoWatch));
-                thread.Start();
+                timer = new System.Timers.Timer(30000);
+                timer.Elapsed += (a, b) =>
+                {
+                    DoUpdate();
+                };
+                timer.Start();
             }
         }
         /// <summary>
@@ -331,24 +349,24 @@ namespace CRL.MemoryDataCache
         /// </summary>
         public static void StopWatch()
         {
-            if (thread != null)
+            if (timer != null)
             {
-                thread.Abort();
+                timer.Stop();
             }
-            thread = null;
+            timer = null;
             //WriteLog("监听已停止");
         }
         static bool working = false;
-        static void DoWatch()
-        {
-            #region watch
-            while (true)
-            {
-                DoUpdate();
-                Thread.Sleep(30000);
-            }
-            #endregion
-        }
+        //static void DoWatch()
+        //{
+        //    #region watch
+        //    while (true)
+        //    {
+        //        DoUpdate();
+        //        Thread.Sleep(30000);
+        //    }
+        //    #endregion
+        //}
         static void DoUpdate()
         {
             if (working)
@@ -376,7 +394,7 @@ namespace CRL.MemoryDataCache
                     }
                     if (ts.TotalSeconds > timeOutSecend && needUpdate)
                     {
-                        needUpdates.Add(new UpdateItem() { Key = item.Key, TableName = item.Value.Query, DBHelper = item.Value.DBHelper, Params = item.Value.Params, UpdateTime = item.Value.UpdateTime, Type = item.Value.Type });
+                        needUpdates.Add(new UpdateItem() { Key = item.Key, TableName = item.Value.Query, DBHelper = item.Value.DBHelper, Params = item.Value.Params, UpdateTime = item.Value.UpdateTime, Type = item.Value.Type, Mapping = item.Value.Mapping });
                     }
                 }
             }
@@ -396,40 +414,64 @@ namespace CRL.MemoryDataCache
                 return;
             }
             working = true;
-            int threadTask = needUpdates.Count / 10;//每个线程10个任务
-            if (threadTask > 5)
-                threadTask = 5;
-            //多线程处理
-            var threadSplit = new CoreHelper.ThreadSplit<UpdateItem>(needUpdates, threadTask);
-            threadSplit.UseLog = false;
-            //任务执行时
-            #region 多线程
-            threadSplit.OnWork = (sender) =>
+            foreach (var item in needUpdates)
             {
-                foreach (var item in sender)
+                try
                 {
-                    try
-                    {
-                        //EventLog.WriteLog("更新TABLE " + item.Value.TableName);
-                        //重新给参数赋值
-                        DBHelper helper = item.DBHelper;
-                        helper.Params = item.Params;
-                        var data = QueryData(item.Key, item.Type, item.TableName, helper);
-                        cacheDatas[item.Key].UpdateTime = DateTime.Now;
-                        cacheDatas[item.Key].UpdatedData = data;
-                    }
-                    catch (Exception ero)
-                    {
-                        EventLog.Log("更新数据缓存查询时出现错误 " + item.TableName + "错误," + ero.Message, true);
-                    }
+                    //EventLog.WriteLog("更新TABLE " + item.Value.TableName);
+                    //重新给参数赋值
+                    DBHelper helper = item.DBHelper;
+                    helper.Params = item.Params;
+                    //将新数据放放UpdateData中, 下次调用时填入Data
+                    var data = QueryData(item.Key, item.Type, item.TableName, item.Mapping, helper);
+                    cacheDatas[item.Key].UpdateTime = DateTime.Now;
+                    cacheDatas[item.Key].UpdatedData = data;
+                    cacheDatas[item.Key].Data = null;
                 }
-            };
-            //任务执行完成
-            threadSplit.OnFinish += (sender, e) =>
-            {
-                working = false;
-            };
-            threadSplit.Start();
+                catch (Exception ero)
+                {
+                    EventLog.Log("更新数据缓存查询时出现错误 " + item.TableName + "错误," + ero.Message, true);
+                }
+            }
+            working = false;
+
+            //int threadTask = needUpdates.Count / 10;//每个线程10个任务
+            //if (threadTask > 5)
+            //    threadTask = 5;
+            //多线程处理
+            //var threadSplit = new CoreHelper.ThreadSplit<UpdateItem>(needUpdates, threadTask);
+            //threadSplit.UseLog = false;
+            //任务执行时
+     
+            #region 多线程
+            //threadSplit.OnWork = (sender) =>
+            //{
+            //    foreach (var item in sender)
+            //    {
+            //        try
+            //        {
+            //            //EventLog.WriteLog("更新TABLE " + item.Value.TableName);
+            //            //重新给参数赋值
+            //            DBHelper helper = item.DBHelper;
+            //            helper.Params = item.Params;
+            //            //将新数据放放UpdateData中, 下次调用时填入Data
+            //            var data = QueryData(item.Key, item.Type, item.TableName, helper);
+            //            cacheDatas[item.Key].UpdateTime = DateTime.Now;
+            //            cacheDatas[item.Key].UpdatedData = data;
+            //            cacheDatas[item.Key].Data = null;
+            //        }
+            //        catch (Exception ero)
+            //        {
+            //            EventLog.Log("更新数据缓存查询时出现错误 " + item.TableName + "错误," + ero.Message, true);
+            //        }
+            //    }
+            //};
+            ////任务执行完成
+            //threadSplit.OnFinish += (sender, e) =>
+            //{
+            //    working = false;
+            //};
+            //threadSplit.Start();
             #endregion
             needUpdates.Clear();
             needUpdates = null;

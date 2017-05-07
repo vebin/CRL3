@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -19,7 +26,13 @@ namespace CRL
         {
             DBHelper = dbHelper;
             DBLocation = dbLocation;
+            //todo 按数据库类型类型判断
+            DataBaseArchitecture = dbHelper.CurrentDBType == CoreHelper.DBType.MongoDB ? DataBaseArchitecture.NotRelation : CRL.DataBaseArchitecture.Relation;
         }
+        /// <summary>
+        /// 数据库架构类型
+        /// </summary>
+        internal DataBaseArchitecture DataBaseArchitecture;
         /// <summary>
         /// 数据库连接定位
         /// </summary>
@@ -42,6 +55,11 @@ namespace CRL
         /// 当前查询参数索引
         /// </summary>
         internal int parIndex = 0;
+        public string Name;
+        public override string ToString()
+        {
+            return Name;
+        }
     }
     /// <summary>
     /// 数据库连接定位
@@ -54,6 +72,10 @@ namespace CRL
         /// 调用的类型
         /// </summary>
         public Type ManageType;
+        /// <summary>
+        /// 附加的定位数据
+        /// </summary>
+        public object TagData;
         /// <summary>
         /// 分库指定的数据库
         /// </summary>

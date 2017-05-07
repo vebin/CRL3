@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -21,7 +28,7 @@ namespace CRL
         {
             if (expression.Body is BinaryExpression)
             {
-
+                var Reflection = ReflectionHelper.GetInfo<T>();
                 BinaryExpression be = ((BinaryExpression)expression.Body);
                 MemberExpression mExp = (MemberExpression)be.Left;
                 string name = mExp.Member.Name;
@@ -34,9 +41,14 @@ namespace CRL
                 }
                 else
                 {
-                    value = LambdaCompileCache.GetExpressionCacheValue(right);
+                    value = ConstantValueVisitor.GetParameExpressionValue(right);
                     //value = Expression.Lambda(right).Compile().DynamicInvoke();
                 }
+                //更改对象值
+                var pro = TypeCache.GetProperties(typeof(T), true);
+                var field = pro[name];
+                //field.TupleSetValue<T>(obj, value);
+                Reflection.GetAccessor(field.MemberName).Set((T)obj, value);
                 obj.SetChanges(name, value);
             }
             else
@@ -69,8 +81,15 @@ namespace CRL
         /// <param name="value"></param>
         public static void Change<T, TKey>(this T obj, Expression<Func<T, TKey>> expression, TKey value) where T : CRL.IModel, new()
         {
+            obj.CheckNull(typeof(T));
             MemberExpression mExp = (MemberExpression)expression.Body;
             string name = mExp.Member.Name;
+            //更改对象值
+            var pro = TypeCache.GetProperties(typeof(T), true);
+            var field = pro[name];
+            var Reflection = ReflectionHelper.GetInfo<T>();
+            //field.TupleSetValue<T>(obj, value);
+            Reflection.GetAccessor(field.MemberName).Set((T)obj, value);
             obj.SetChanges(name, value);
         }
         #region 表示按值累加
@@ -138,7 +157,15 @@ namespace CRL
         {
             MemberExpression mExp = (MemberExpression)expression.Body;
             string name = mExp.Member.Name;
-            obj.SetChanges("$" + name, value);
+            //更改对象值
+            var pro = TypeCache.GetProperties(typeof(T), true);
+            var field = pro[name];
+            dynamic origin = field.GetValue(obj);
+            origin += value;
+            var Reflection = ReflectionHelper.GetInfo<T>();
+            //field.TupleSetValue<T>(obj, origin);
+            Reflection.GetAccessor(field.MemberName).Set((T)obj, origin);
+            obj.SetChanges("$" + field.MemberName, value);
         }
         #endregion
         #endregion

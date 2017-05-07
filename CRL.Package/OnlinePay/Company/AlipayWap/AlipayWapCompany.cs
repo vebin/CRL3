@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V3.1
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -63,6 +70,13 @@ namespace CRL.Package.OnlinePay.Company.AlipayWap
             {
                 var out_trade_no = context.Request["out_trade_no"];
                 var order = OnlinePayBusiness.Instance.GetOrder(out_trade_no, ThisCompanyType);
+                if (order == null)
+                {
+                    error = "交易成功，确认订单时，找不到订单" + out_trade_no + "";
+                    CoreHelper.EventLog.Log(string.Format("在线支付支付成功，确认时找不到订单{0} 订单号{1}", ThisCompanyType, out_trade_no), true);
+                    //context.Response.Write("fail");
+                    return false;
+                }
                 Confirm(order, GetType(), order.Amount);
                 return true;
             }
@@ -103,7 +117,16 @@ namespace CRL.Package.OnlinePay.Company.AlipayWap
                 //交易成功并在页面返回success
                 string out_trade_no = Function.GetStrForXmlDoc(notify_data, "notify/out_trade_no");
                 var order = OnlinePayBusiness.Instance.GetOrder(out_trade_no, ThisCompanyType);
-                Confirm(order, GetType(), order.Amount);
+                if (order == null)
+                {
+                    CoreHelper.EventLog.Log(string.Format("在线支付支付成功，确认时找不到订单{0} 订单号{1}", ThisCompanyType, out_trade_no), true);
+                    //context.Response.Write("fail");
+                    //return "fail";
+                }
+                else
+                {
+                    Confirm(order, GetType(), order.Amount);
+                }
                 return "success";
                 
             }
@@ -111,6 +134,7 @@ namespace CRL.Package.OnlinePay.Company.AlipayWap
 
         public override void Submit(PayHistory order)
         {
+            BaseSubmit(order);
             //初始化Service
             Service ali = new Service();
             var context = HttpContext.Current;

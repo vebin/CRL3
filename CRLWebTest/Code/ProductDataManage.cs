@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -11,6 +18,10 @@ namespace WebTest.Code
     /// </summary>
     public class ProductDataManage : CRL.BaseProvider<ProductData>
     {
+        protected override CRL.LambdaQuery.LambdaQuery<ProductData> CacheQuery()
+        {
+            return GetLambdaQuery().Where(b => b.Id < 1000).Expire(5);
+        }
         /// <summary>
         /// 对象被更新时,是否通知缓存服务器
         /// </summary>
@@ -18,7 +29,7 @@ namespace WebTest.Code
         {
             get
             {
-                return true;
+                return false;
             }
         }
         /// <summary>
@@ -38,16 +49,12 @@ namespace WebTest.Code
         /// </summary>
         public static ProductDataManage Instance
         {
-            get { return new ProductDataManage(); }
+            get { return CreateInstance<ProductDataManage>(); }
         }
 
         public List<ProductData> QueryDayProduct(DateTime date)
         {
-            var helper = DBExtend;
-            string sql = "select * from ProductData where datediff(d,addtime,@date)=0";
-            helper.AddParam("date", date);
-            return helper.AutoSpQuery<ProductData>(sql);
-            //其它数据结果参见Auto开头的其它方法
+            return new List<ProductData>();
         }
         
         public void DynamicQueryTest()

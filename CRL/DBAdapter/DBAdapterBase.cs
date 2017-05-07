@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,7 +13,7 @@ using System.Data;
 
 namespace CRL.DBAdapter
 {
-    internal abstract class DBAdapterBase
+    public abstract class DBAdapterBase
     {
         internal DbContext dbContext;
         protected CoreHelper.DBHelper helper;
@@ -49,10 +56,13 @@ namespace CRL.DBAdapter
                 case CoreHelper.DBType.ORACLE:
                     db = new ORACLEDBAdapter(dbContext);
                     break;
+                case CoreHelper.DBType.MongoDB:
+                    db = new MongoDBAdapter(dbContext);
+                    break;
             }
             if (db == null)
             {
-                throw new Exception("找不到对应的DBAdapte" + dbContext.DBHelper.CurrentDBType);
+                throw new CRLException("找不到对应的DBAdapte" + dbContext.DBHelper.CurrentDBType);
             }
             return db;
         }
@@ -98,7 +108,7 @@ namespace CRL.DBAdapter
             }
             if (!dic.ContainsKey(type))
             {
-                throw new Exception(string.Format("找不到对应的字段类型映射 {0} 在 {1}", type, this));
+                throw new CRLException(string.Format("找不到对应的字段类型映射 {0} 在 {1}", type, this));
             }
             return dic[type];
         }
@@ -185,7 +195,7 @@ namespace CRL.DBAdapter
         /// 获取with nolock语法
         /// </summary>
         /// <returns></returns>
-        public abstract string GetWithNolockFormat();
+        public abstract string GetWithNolockFormat(bool v);
         #endregion
 
         #region  系统查询
@@ -211,7 +221,7 @@ namespace CRL.DBAdapter
         /// <returns></returns>
         public abstract string SpParameFormat(string name,string type,bool output);
         /// <summary>
-        /// 关键字格式化,可能会增加后辍
+        /// 关键字格式化,如SQL为 [field]
         /// </summary>
         public abstract string KeyWordFormat(string value);
         /// <summary>
@@ -304,6 +314,23 @@ namespace CRL.DBAdapter
         {
             return string.Format("{0} NOT IN ({1})", field, parName);
         }
+        public abstract string CastField(string field,Type fieldType);
+        public virtual string IsNotFormat(bool isNot)
+        {
+            return isNot ? " is not " : " is ";
+        }
+        public virtual string ToUpperFormat(string field)
+        {
+            return string.Format("upper({0})",field);
+        }
+        public virtual string ToLowerFormat(string field)
+        {
+            return string.Format("lower({0})", field);
+        }
+        public virtual string IsNull(string field, object value)
+        {
+            return string.Format("isnull({0},{1})", field, value);
+        }
         #endregion
 
         /// <summary>
@@ -316,10 +343,37 @@ namespace CRL.DBAdapter
         /// <param name="end"></param>
         /// <param name="sort"></param>
         /// <returns></returns>
-        internal virtual string PageSqlFormat(string fields, string rowOver, string condition,int start,int end,string sort)
+        public virtual string PageSqlFormat(string fields, string rowOver, string condition,int start,int end,string sort)
         {
             string sql = "SELECT * FROM (select {0},ROW_NUMBER() OVER ( Order by {1} ) AS RowNumber From {2}) T WHERE T.RowNumber BETWEEN {3} AND {4} order by RowNumber";
             return string.Format(sql, fields, rowOver, condition, start, end);
+        }
+        /// <summary>
+        /// 获取关联更新语名
+        /// </summary>
+        /// <param name="t1"></param>
+        /// <param name="t2"></param>
+        /// <param name="condition"></param>
+        /// <param name="setValue"></param>
+        /// <returns></returns>
+        public virtual string GetRelationUpdateSql(string t1, string t2, string condition, string setValue)
+        {
+            string table = string.Format("{0} t1,{1} t2", KeyWordFormat(t1), KeyWordFormat(t2));
+            string sql = string.Format("update t1 set {0} from {1} where {2}", setValue, table, condition);
+            return sql;
+        }
+        /// <summary>
+        /// 获取关联删除语句
+        /// </summary>
+        /// <param name="t1"></param>
+        /// <param name="t2"></param>
+        /// <param name="condition"></param>
+        /// <returns></returns>
+        public virtual string GetRelationDeleteSql(string t1, string t2, string condition)
+        {
+            string table = string.Format("{0} t1,{1} t2", KeyWordFormat(t1), KeyWordFormat(t2));
+            string sql = string.Format("delete t1 from {0} where {1}", table, condition);
+            return sql;
         }
     }
 }

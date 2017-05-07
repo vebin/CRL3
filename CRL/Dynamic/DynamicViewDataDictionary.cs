@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,6 +21,8 @@ namespace CRL.Dynamic
         // Methods
         public DynamicViewDataDictionary(Dictionary<string, object> viewDataThunk)
         {
+            viewDataThunk = viewDataThunk ?? new Dictionary<string, object>();
+
             this._viewDataThunk = viewDataThunk;
         }
 
@@ -27,7 +36,7 @@ namespace CRL.Dynamic
             var a = ViewData.TryGetValue(binder.Name.ToLower(), out result);
             if (!a)
             {
-                throw new Exception(string.Format("动态字典Bag不存在索引值:{0}", binder.Name));
+                throw new CRLException(string.Format("动态字典Bag不存在索引值:{0}", binder.Name));
             }
             return a;
         }

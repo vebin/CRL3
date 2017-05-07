@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V4.0
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -33,7 +40,7 @@ namespace CRL.CacheServer
             var result = SendQuery(json);
             if (result.StartsWith("error"))
             {
-                throw new Exception(result);
+                throw new CRLException(result);
             }
             var resultData = (ResultData)CoreHelper.SerializeHelper.SerializerFromJSON(result, typeof(ResultData), System.Text.Encoding.UTF8);
             total = resultData.Total;
@@ -62,7 +69,7 @@ namespace CRL.CacheServer
                 var result = SendQuery(json);
                 if (result.StartsWith("error"))
                 {
-                    throw new Exception(result);
+                    throw new CRLException(result);
                 }
             }
             catch(Exception ero)
@@ -81,7 +88,7 @@ namespace CRL.CacheServer
                 var result = SendQuery(json);
                 if (result.StartsWith("error"))
                 {
-                    throw new Exception(result);
+                    throw new CRLException(result);
                 }
                 var setting = (List<string>)CoreHelper.SerializeHelper.SerializerFromJSON(result, typeof(List<string>), Encoding.UTF8);
                 lock (lockObj)
@@ -97,7 +104,7 @@ namespace CRL.CacheServer
             }
             catch (Exception ero)
             {
-                throw new Exception(string.Format("分布式缓存:获取服务器{0}设置时发生错误:{1}", Host, ero.Message));
+                throw new CRLException(string.Format("分布式缓存:获取服务器{0}设置时发生错误:{1}", Host, ero.Message));
             }
         }
     }

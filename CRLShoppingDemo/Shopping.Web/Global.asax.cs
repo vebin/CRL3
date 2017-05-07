@@ -1,6 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+/**
+* CRL 快速开发框架 V3.1
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Web;
 using System.Web.Http;
 using System.Web.Mvc;
@@ -24,11 +29,23 @@ namespace Shopping.Web
             {
                 return new CoreHelper.SqlHelper(System.Configuration.ConfigurationManager.ConnectionStrings["default"].ConnectionString);
             };
+
+            var QuartzWorker = new CoreHelper.QuartzScheduler.QuartzWorker();
+            var task = new BLL.ProxyPool.GetProxyJob();
+            QuartzWorker.AddWork(task);
+            //QuartzWorker.Start();
+
         }
         protected void Application_AuthenticateRequest(object sender, EventArgs e)
         {
             //检查票据,设置登录状态
             CoreHelper.FormAuthentication.AuthenticationSecurity.CheckTicket();
         }
+        protected void Application_Error(object sender, EventArgs e)
+        {
+            Core.Mvc.CustomError.HandleError(Context);
+            
+        }
+
     }
 }

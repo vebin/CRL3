@@ -1,4 +1,11 @@
-﻿using System;
+/**
+* CRL 快速开发框架 V3.1
+* Copyright (c) 2016 Hubro All rights reserved.
+* GitHub https://github.com/hubro-xx/CRL3
+* 主页 http://www.cnblogs.com/hubro
+* 在线文档 http://crl.changqidongli.com/
+*/
+using System;
 using System.Collections.Generic;
 using System.Web;
 using System.Web.UI;
@@ -8,7 +15,6 @@ using System.IO;
 using System.Text;
 using System.Net;
 using System.Web.Security;
-using LitJson;
 
 
 namespace CRL.Package.OnlinePay.Company.Weixin
@@ -54,7 +60,7 @@ namespace CRL.Package.OnlinePay.Company.Weixin
         * 第二步：利用code去获取openid和access_token
         * 
         */
-        public void GetOpenidAndAccessToken()
+        public void GetOpenidAndAccessToken(out string jumpUrl)
         {
             if (!string.IsNullOrEmpty(page.Request.QueryString["code"]))
             {
@@ -62,6 +68,7 @@ namespace CRL.Package.OnlinePay.Company.Weixin
                 string code = page.Request.QueryString["code"];
                 Log.Debug(this.GetType().ToString(), "Get code : " + code);
                 GetOpenidAndAccessTokenFromCode(code);
+                jumpUrl = "";
             }
             else
             {
@@ -77,6 +84,8 @@ namespace CRL.Package.OnlinePay.Company.Weixin
                 data.SetValue("state", "STATE" + "#wechat_redirect");
                 string url = "https://open.weixin.qq.com/connect/oauth2/authorize?" + data.ToUrl();
                 Log.Debug(this.GetType().ToString(), "Will Redirect to URL : " + url);
+                jumpUrl = url;
+                return;
                 try
                 {
                     //触发微信返回code码         
@@ -116,16 +125,21 @@ namespace CRL.Package.OnlinePay.Company.Weixin
                 data.SetValue("code", code);
                 data.SetValue("grant_type", "authorization_code");
                 string url = "https://api.weixin.qq.com/sns/oauth2/access_token?" + data.ToUrl();
-
+                Log.Debug(this.GetType().ToString(), "url is : " + url);
                 //请求url以获取数据
-                string result = HttpService.Get(url);
-
+                //string result = HttpService.Get(url);
+                string result = CoreHelper.HttpRequest.HttpGet(url,Encoding.UTF8);
                 Log.Debug(this.GetType().ToString(), "GetOpenidAndAccessTokenFromCode response : " + result);
 
                 //保存access_token，用于收货地址获取
-                JsonData jd = JsonMapper.ToObject(result);
+                //JsonData jd = JsonMapper.ToObject(result);
+                var jd = (Newtonsoft.Json.Linq.JObject)Newtonsoft.Json.JsonConvert.DeserializeObject(result);
                 access_token = (string)jd["access_token"];
-
+                //CoreHelper.EventLog.Log(access_token);
+                if (string.IsNullOrEmpty(access_token))
+                {
+                    throw new Exception("GetOpenidAndAccessTokenFromCode 返回access_token 为空");
+                }
                 //获取用户openid
                 openid = (string)jd["openid"];
 
@@ -144,25 +158,28 @@ namespace CRL.Package.OnlinePay.Company.Weixin
          * @return 统一下单结果
          * @失败时抛异常WxPayException
          */
-        public WxPayData GetUnifiedOrderResult(PayHistory order)
+        public WxPayData GetUnifiedOrderResult(PayHistory order, string trade_type = "JSAPI")
         {
             //统一下单
             WxPayData data = new WxPayData();
-            data.SetValue("body", "test");
-            data.SetValue("attach", "test");
+            data.SetValue("body", order.Desc);
+            data.SetValue("attach", order.TagData);
             data.SetValue("out_trade_no", order.OrderId);
             data.SetValue("total_fee", total_fee);
             data.SetValue("time_start", DateTime.Now.ToString("yyyyMMddHHmmss"));
             data.SetValue("time_expire", DateTime.Now.AddMinutes(10).ToString("yyyyMMddHHmmss"));
-            data.SetValue("goods_tag", "test");
-            data.SetValue("trade_type", "JSAPI");
-            data.SetValue("openid", openid);
-
+            data.SetValue("goods_tag", order.TagData);
+            data.SetValue("trade_type", trade_type);
+            data.SetValue("notify_url", WxPayConfig.NOTIFY_URL);//异步通知url
+            if (trade_type == "JSAPI")
+            {
+                data.SetValue("openid", openid);
+            }
             WxPayData result = WxPayApi.UnifiedOrder(data);
             if (!result.IsSet("appid") || !result.IsSet("prepay_id") || result.GetValue("prepay_id").ToString() == "")
             {
                 Log.Error(this.GetType().ToString(), "UnifiedOrder response error!");
-                throw new WxPayException("UnifiedOrder response error!");
+                throw new WxPayException("UnifiedOrder response error!" + result.GetValue("return_msg"));
             }
 
             unifiedOrderResult = result;
